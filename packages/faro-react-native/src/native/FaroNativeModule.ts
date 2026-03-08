@@ -1,13 +1,13 @@
 import { NativeModules, Platform } from 'react-native';
 
-import type { Spec } from './NativeFaroModule';
+import type { Spec } from './NativeFaroReactNative';
 
 // Try TurboModule first (New Architecture), fall back to old bridge
 let NativeFaroModule: Spec | null = null;
 
 try {
   // New Architecture (TurboModules)
-  NativeFaroModule = require('./NativeFaroModule').default;
+  NativeFaroModule = require('./NativeFaroReactNative').default;
 } catch {
   // Old Architecture fallback
 }

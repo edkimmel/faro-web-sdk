@@ -1,5 +1,6 @@
 import Foundation
 import os.log
+import React
 import FaroSDK
 
 @objc(FaroReactNative)
@@ -159,10 +160,10 @@ class FaroReactNativeModule: NSObject {
         let appObj = obj["app"] as? [String: Any] ?? [:]
         let app = MetaApp(
             name: appObj["name"] as? String,
-            version: appObj["version"] as? String,
-            environment: appObj["environment"] as? String,
             namespace: appObj["namespace"] as? String,
             release: appObj["release"] as? String,
+            version: appObj["version"] as? String,
+            environment: appObj["environment"] as? String,
             bundleId: appObj["bundleId"] as? String
         )
 

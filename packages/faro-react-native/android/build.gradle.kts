@@ -1,5 +1,6 @@
 plugins {
     id("com.android.library")
+    id("com.facebook.react")
     id("org.jetbrains.kotlin.android")
 }
 

@@ -9,7 +9,7 @@ public final class FaroInstance {
     private let diskBuffer: DiskBuffer
     private let httpTransport: HttpTransport
     private let diskBufferTransport: DiskBufferTransport
-    private let batchExecutor: BatchExecutor
+    private var batchExecutor: BatchExecutor!
     private let instrumentationsQueue = DispatchQueue(label: "com.grafana.faro.instance.instrumentations")
     private var _instrumentations: [Instrumentation] = []
     private var instrumentations: [Instrumentation] {

@@ -31,13 +31,26 @@
     "react-native-builder-bob": "^0.23.0",
     "typescript": "^5.3.0"
   },
+  "codegenConfig": {
+    "name": "FaroReactNativeSpec",
+    "type": "modules",
+    "jsSrcsDir": "src/native",
+    "android": {
+      "javaPackageName": "com.grafana.faro.reactnative"
+    }
+  },
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",
     "targets": [
       "commonjs",
       "module",
-      ["typescript", { "project": "tsconfig.build.json" }]
+      [
+        "typescript",
+        {
+          "project": "tsconfig.build.json"
+        }
+      ]
     ]
   }
 }
