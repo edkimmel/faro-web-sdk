@@ -74,7 +74,7 @@ internal class HttpTransport(
             }
         } catch (e: Exception) {
             logger.error("Failed to send payload", e)
-            throw e
+            throw TransportException("Failed to send payload to $collectorUrl", e)
         }
     }
 

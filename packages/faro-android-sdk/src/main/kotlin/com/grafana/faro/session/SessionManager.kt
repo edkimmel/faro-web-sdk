@@ -16,12 +16,20 @@ internal class SessionManager(
     private val store: SessionStore,
     private val logger: InternalLogger
 ) {
+    private val lock = Object()
     private var currentSessionId: String? = null
     private var sessionStartTime: Long = 0
     private var lastActivityTime: Long = 0
-    private var isSampled: Boolean = true
+    @Volatile
+    private var _isSampled: Boolean = true
 
     fun start(): String {
+        synchronized(lock) {
+            return lockedStart()
+        }
+    }
+
+    private fun lockedStart(): String {
         if (!config.enabled) {
             logger.debug("Session tracking disabled")
             return ""
@@ -34,59 +42,63 @@ internal class SessionManager(
                 currentSessionId = stored.sessionId
                 sessionStartTime = stored.startTime
                 lastActivityTime = System.currentTimeMillis()
-                isSampled = stored.isSampled
+                _isSampled = stored.isSampled
                 logger.debug("Restored session: $currentSessionId")
                 return currentSessionId!!
             }
         }
 
-        return createNewSession()
+        return lockedCreateNewSession()
     }
 
     fun getSessionId(): String {
-        if (currentSessionId == null) {
-            return start()
-        }
+        synchronized(lock) {
+            if (currentSessionId == null) {
+                return lockedStart()
+            }
 
-        // Check if session needs rotation
-        val now = System.currentTimeMillis()
-        if (now - sessionStartTime > config.maxSessionDurationMs ||
-            now - lastActivityTime > config.sessionTimeoutMs
-        ) {
-            return createNewSession()
-        }
+            // Check if session needs rotation
+            val now = System.currentTimeMillis()
+            if (now - sessionStartTime > config.maxSessionDurationMs ||
+                now - lastActivityTime > config.sessionTimeoutMs
+            ) {
+                return lockedCreateNewSession()
+            }
 
-        lastActivityTime = now
-        if (config.persistent) {
-            store.saveSession(StoredSession(currentSessionId!!, sessionStartTime, isSampled))
-        }
+            lastActivityTime = now
+            if (config.persistent) {
+                store.saveSession(StoredSession(currentSessionId!!, sessionStartTime, _isSampled))
+            }
 
-        return currentSessionId!!
+            return currentSessionId!!
+        }
     }
 
-    fun isSampled(): Boolean = isSampled
+    fun isSampled(): Boolean = _isSampled
 
     fun setSessionId(sessionId: String) {
-        currentSessionId = sessionId
-        sessionStartTime = System.currentTimeMillis()
-        lastActivityTime = sessionStartTime
-        isSampled = true
-        if (config.persistent) {
-            store.saveSession(StoredSession(sessionId, sessionStartTime, isSampled))
+        synchronized(lock) {
+            currentSessionId = sessionId
+            sessionStartTime = System.currentTimeMillis()
+            lastActivityTime = sessionStartTime
+            _isSampled = true
+            if (config.persistent) {
+                store.saveSession(StoredSession(sessionId, sessionStartTime, _isSampled))
+            }
         }
     }
 
-    private fun createNewSession(): String {
+    private fun lockedCreateNewSession(): String {
         currentSessionId = generateSessionId()
         sessionStartTime = System.currentTimeMillis()
         lastActivityTime = sessionStartTime
-        isSampled = Math.random() < config.samplingRate
+        _isSampled = Math.random() < config.samplingRate
 
         if (config.persistent) {
-            store.saveSession(StoredSession(currentSessionId!!, sessionStartTime, isSampled))
+            store.saveSession(StoredSession(currentSessionId!!, sessionStartTime, _isSampled))
         }
 
-        logger.debug("Created new session: $currentSessionId (sampled: $isSampled)")
+        logger.debug("Created new session: $currentSessionId (sampled: $_isSampled)")
         return currentSessionId!!
     }
 

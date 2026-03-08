@@ -12,17 +12,31 @@ public final class FaroInstance {
     private let batchExecutor: BatchExecutor
     private var instrumentations: [Instrumentation] = []
 
-    private var isPaused = false
-    private var currentUser: MetaUser?
-    private var currentView: MetaView?
+    private let stateQueue = DispatchQueue(label: "com.grafana.faro.instance.state")
+    private var _isPaused = false
+    private var _currentUser: MetaUser?
+    private var _currentView: MetaView?
+
+    private var isPaused: Bool {
+        get { stateQueue.sync { _isPaused } }
+        set { stateQueue.sync { _isPaused = newValue } }
+    }
+    private var currentUser: MetaUser? {
+        get { stateQueue.sync { _currentUser } }
+        set { stateQueue.sync { _currentUser = newValue } }
+    }
+    private var currentView: MetaView? {
+        get { stateQueue.sync { _currentView } }
+        set { stateQueue.sync { _currentView = newValue } }
+    }
 
     static let sdkName = "faro-ios-sdk"
     static let sdkVersion = "1.0.0"
 
-    init(config: FaroConfig, logger: InternalLogger) {
+    init(config: FaroConfig, logger: InternalLogger) throws {
         self.config = config
         self.logger = logger
-        self.currentUser = config.user
+        self._currentUser = config.user
 
         let sessionStore = SessionStore()
         sessionManager = SessionManager(config: config.sessionTracking, store: sessionStore, logger: logger)
@@ -31,7 +45,7 @@ public final class FaroInstance {
         let faroDir = cacheDir.appendingPathComponent("faro")
         diskBuffer = DiskBuffer(baseDir: faroDir, config: config.diskBufferConfig, logger: logger)
 
-        httpTransport = HttpTransport(
+        httpTransport = try HttpTransport(
             collectorUrl: config.collectorUrl,
             apiKey: config.apiKey,
             logger: logger
@@ -262,10 +276,30 @@ public final class FaroInstance {
 
         for item in items {
             switch item.type {
-            case .log: logs.append(item.payload as! LogEvent)
-            case .exception: exceptions.append(item.payload as! ExceptionEvent)
-            case .measurement: measurements.append(item.payload as! MeasurementEvent)
-            case .event: events.append(item.payload as! EventEvent)
+            case .log:
+                guard let event = item.payload as? LogEvent else {
+                    logger.error("Unexpected payload type for log item, skipping")
+                    continue
+                }
+                logs.append(event)
+            case .exception:
+                guard let event = item.payload as? ExceptionEvent else {
+                    logger.error("Unexpected payload type for exception item, skipping")
+                    continue
+                }
+                exceptions.append(event)
+            case .measurement:
+                guard let event = item.payload as? MeasurementEvent else {
+                    logger.error("Unexpected payload type for measurement item, skipping")
+                    continue
+                }
+                measurements.append(event)
+            case .event:
+                guard let event = item.payload as? EventEvent else {
+                    logger.error("Unexpected payload type for event item, skipping")
+                    continue
+                }
+                events.append(event)
             }
         }
 

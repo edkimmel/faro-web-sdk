@@ -20,7 +20,7 @@ class FaroReactNativeModule: NSObject {
                     self.faroInstance = Faro.shared.getInstance()
                     os_log(.info, log: self.logger, "Reusing existing native SDK instance")
                 } else {
-                    self.faroInstance = Faro.shared.initialize(config: config)
+                    self.faroInstance = try Faro.shared.initialize(config: config)
                     os_log(.info, log: self.logger, "Native SDK initialized successfully")
                 }
                 resolve(nil)

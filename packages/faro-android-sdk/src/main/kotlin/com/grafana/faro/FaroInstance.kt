@@ -282,10 +282,14 @@ class FaroInstance internal constructor(
 
         for (item in items) {
             when (item.type) {
-                TransportItemType.LOG -> logs.add(item.payload as LogEvent)
-                TransportItemType.EXCEPTION -> exceptions.add(item.payload as ExceptionEvent)
-                TransportItemType.MEASUREMENT -> measurements.add(item.payload as MeasurementEvent)
-                TransportItemType.EVENT -> events.add(item.payload as EventEvent)
+                TransportItemType.LOG -> (item.payload as? LogEvent)?.let { logs.add(it) }
+                    ?: logger.error("Unexpected payload type for log item, skipping")
+                TransportItemType.EXCEPTION -> (item.payload as? ExceptionEvent)?.let { exceptions.add(it) }
+                    ?: logger.error("Unexpected payload type for exception item, skipping")
+                TransportItemType.MEASUREMENT -> (item.payload as? MeasurementEvent)?.let { measurements.add(it) }
+                    ?: logger.error("Unexpected payload type for measurement item, skipping")
+                TransportItemType.EVENT -> (item.payload as? EventEvent)?.let { events.add(it) }
+                    ?: logger.error("Unexpected payload type for event item, skipping")
             }
         }
 

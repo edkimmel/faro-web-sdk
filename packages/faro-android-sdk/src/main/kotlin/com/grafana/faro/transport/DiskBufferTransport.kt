@@ -30,7 +30,11 @@ internal class DiskBufferTransport(
 
     override fun send(body: TransportBody) {
         // Write to disk first
-        diskBuffer.writeSignal(body)
+        try {
+            diskBuffer.writeSignal(body)
+        } catch (e: Exception) {
+            logger.error("Failed to write signal to disk, signal may be lost", e)
+        }
 
         // Then try to send immediately
         scope.launch {

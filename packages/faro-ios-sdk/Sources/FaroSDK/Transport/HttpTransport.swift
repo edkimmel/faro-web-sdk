@@ -1,5 +1,9 @@
 import Foundation
 
+internal enum HttpTransportError: Error {
+    case invalidCollectorUrl(String)
+}
+
 internal final class HttpTransport: Transport {
     let name = "faro-ios:transport-http"
 
@@ -13,9 +17,9 @@ internal final class HttpTransport: Transport {
     private static let accepted = 202
     private static let defaultRateLimitBackoffSeconds: TimeInterval = 5.0
 
-    init(collectorUrl: String, apiKey: String?, logger: InternalLogger) {
+    init(collectorUrl: String, apiKey: String?, logger: InternalLogger) throws {
         guard let url = URL(string: collectorUrl) else {
-            fatalError("Invalid collector URL: \(collectorUrl)")
+            throw HttpTransportError.invalidCollectorUrl(collectorUrl)
         }
         self.collectorUrl = url
         self.apiKey = apiKey

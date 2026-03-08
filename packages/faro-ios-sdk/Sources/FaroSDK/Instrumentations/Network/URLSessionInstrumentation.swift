@@ -82,6 +82,7 @@ public final class URLSessionInstrumentation: Instrumentation {
 public final class FaroURLProtocol: URLProtocol {
     private var startTime: Date?
     private var dataTask: URLSessionDataTask?
+    private var internalSession: URLSession?
     private var receivedData = Data()
 
     private static let handledKey = "com.grafana.faro.handled"
@@ -105,12 +106,15 @@ public final class FaroURLProtocol: URLProtocol {
         URLProtocol.setProperty(true, forKey: FaroURLProtocol.handledKey, in: mutableRequest)
 
         let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+        internalSession = session
         dataTask = session.dataTask(with: mutableRequest as URLRequest)
         dataTask?.resume()
     }
 
     override public func stopLoading() {
         dataTask?.cancel()
+        internalSession?.invalidateAndCancel()
+        internalSession = nil
     }
 }
 
@@ -149,5 +153,9 @@ extension FaroURLProtocol: URLSessionDataDelegate {
         } else {
             client?.urlProtocolDidFinishLoading(self)
         }
+
+        // Invalidate the session to prevent resource leaks
+        session.finishTasksAndInvalidate()
+        internalSession = nil
     }
 }

@@ -17,7 +17,11 @@ internal final class BatchExecutor {
     private var buffer: [TransportItem] = []
     private let queue = DispatchQueue(label: "com.grafana.faro.batch", attributes: .concurrent)
     private var flushTimer: DispatchWorkItem?
-    var isPaused: Bool = false
+    private var _isPaused: Bool = false
+    var isPaused: Bool {
+        get { queue.sync { _isPaused } }
+        set { queue.async(flags: .barrier) { [weak self] in self?._isPaused = newValue } }
+    }
 
     init(config: BatchConfig, logger: InternalLogger, onFlush: @escaping ([TransportItem]) -> Void) {
         self.config = config
@@ -26,13 +30,12 @@ internal final class BatchExecutor {
     }
 
     func add(_ item: TransportItem) {
-        if isPaused {
-            logger.debug("BatchExecutor is paused, dropping item")
-            return
-        }
-
         queue.async(flags: .barrier) { [weak self] in
             guard let self = self else { return }
+            if self._isPaused {
+                self.logger.debug("BatchExecutor is paused, dropping item")
+                return
+            }
             self.buffer.append(item)
 
             if self.buffer.count >= self.config.itemLimit {

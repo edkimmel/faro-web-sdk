@@ -12,8 +12,8 @@ import Foundation
 ///
 /// Then access from anywhere:
 /// ```swift
-/// Faro.shared.getInstance().pushLog("Something happened")
-/// Faro.shared.getInstance().pushError(error)
+/// Faro.shared.getInstance()?.pushLog("Something happened")
+/// Faro.shared.getInstance()?.pushError(error)
 /// ```
 public final class Faro {
     public static let shared = Faro()
@@ -27,29 +27,29 @@ public final class Faro {
     ///
     /// - Parameter config: The Faro configuration
     /// - Returns: The initialized FaroInstance
+    /// - Throws: `HttpTransportError.invalidCollectorUrl` if the collector URL is malformed
     @discardableResult
-    public func initialize(config: FaroConfig) -> FaroInstance {
+    public func initialize(config: FaroConfig) throws -> FaroInstance {
         lock.lock()
         defer { lock.unlock() }
 
-        guard instance == nil else {
-            fatalError("Faro is already initialized. Call Faro.shared.getInstance() to access the existing instance.")
+        if let existing = instance {
+            let logger = InternalLogger(level: config.internalLoggerLevel)
+            logger.warn("Faro is already initialized. Returning existing instance.")
+            return existing
         }
 
         let logger = InternalLogger(level: config.internalLoggerLevel)
-        let faroInstance = FaroInstance(config: config, logger: logger)
+        let faroInstance = try FaroInstance(config: config, logger: logger)
         instance = faroInstance
         faroInstance.start()
         return faroInstance
     }
 
-    /// Get the initialized Faro instance.
+    /// Get the initialized Faro instance, if available.
     ///
-    /// - Returns: The FaroInstance
-    public func getInstance() -> FaroInstance {
-        guard let instance = instance else {
-            fatalError("Faro has not been initialized. Call Faro.shared.initialize() first.")
-        }
+    /// - Returns: The FaroInstance, or nil if not yet initialized
+    public func getInstance() -> FaroInstance? {
         return instance
     }
 

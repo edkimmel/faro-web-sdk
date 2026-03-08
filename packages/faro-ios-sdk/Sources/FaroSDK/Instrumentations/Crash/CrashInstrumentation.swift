@@ -22,15 +22,28 @@ public final class CrashInstrumentation: Instrumentation {
         CrashInstrumentation.previousExceptionHandler = NSGetUncaughtExceptionHandler()
 
         NSSetUncaughtExceptionHandler { exception in
-            CrashInstrumentation.sharedInstance?.handleCrash(exception)
+            // Guard the entire crash handler so a failure here never
+            // prevents the previous handler (e.g. Crashlytics) from running.
+            CrashInstrumentation.handleCrashSafely(exception)
 
             // Forward to previous handler
             CrashInstrumentation.previousExceptionHandler?(exception)
         }
     }
 
+    private static func handleCrashSafely(_ exception: NSException) {
+        // Use autoreleasepool to prevent leaks in the crash path,
+        // and guard against any unexpected failures in our handler.
+        autoreleasepool {
+            sharedInstance?.handleCrash(exception)
+        }
+    }
+
     private func handleCrash(_ exception: NSException) {
-        let frames = Thread.callStackSymbols.enumerated().map { (index, symbol) in
+        // Use the exception's own callStackSymbols when available (more accurate),
+        // fall back to current thread's symbols
+        let symbols = exception.callStackSymbols.isEmpty ? Thread.callStackSymbols : exception.callStackSymbols
+        let frames = symbols.enumerated().map { (index, symbol) in
             ExceptionStackFrame(
                 filename: "native",
                 function: symbol,

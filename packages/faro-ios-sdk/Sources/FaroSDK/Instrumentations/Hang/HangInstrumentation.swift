@@ -50,9 +50,20 @@ public final class HangInstrumentation: Instrumentation {
     }
 
     private func reportHang() {
-        // Capture main thread stack trace
-        let symbols = Thread.main.threadDictionary.description
-        let frames = Thread.callStackSymbols.map { symbol in
+        // Capture main thread's stack trace by dispatching to it synchronously
+        // with a very short timeout. Since the main thread is hung, we fall back
+        // to reporting without a stack trace rather than capturing the wrong thread.
+        var mainThreadSymbols: [String]?
+        let sem = DispatchSemaphore(value: 0)
+        DispatchQueue.main.async {
+            mainThreadSymbols = Thread.callStackSymbols
+            sem.signal()
+        }
+        // Give the main thread a brief chance to respond (it's likely still hung)
+        _ = sem.wait(timeout: .now() + 0.1)
+
+        let symbols = mainThreadSymbols ?? []
+        let frames = symbols.map { symbol in
             ExceptionStackFrame(
                 filename: "native",
                 function: symbol,
@@ -64,7 +75,7 @@ public final class HangInstrumentation: Instrumentation {
         faro?.pushError(
             type: "MainThreadHang",
             value: "Main thread blocked for more than \(threshold)s",
-            stacktrace: Stacktrace(frames: frames),
+            stacktrace: frames.isEmpty ? nil : Stacktrace(frames: frames),
             context: [
                 "source": "hang_detection",
                 "threshold_seconds": String(threshold)

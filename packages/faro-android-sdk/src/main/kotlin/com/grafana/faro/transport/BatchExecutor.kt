@@ -14,7 +14,8 @@ internal class BatchExecutor(
     private val logger: InternalLogger,
     private val onFlush: (List<TransportItem>) -> Unit
 ) {
-    private val buffer = CopyOnWriteArrayList<TransportItem>()
+    private val buffer = mutableListOf<TransportItem>()
+    private val lock = Object()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var flushJob: Job? = null
 
@@ -27,16 +28,17 @@ internal class BatchExecutor(
             return
         }
 
-        buffer.add(item)
+        synchronized(lock) {
+            buffer.add(item)
 
-        if (buffer.size >= config.itemLimit) {
-            flush()
-        } else {
-            scheduleFlush()
+            if (buffer.size >= config.itemLimit) {
+                performFlush()
+            } else {
+                scheduleFlush()
+            }
         }
     }
 
-    @Synchronized
     private fun scheduleFlush() {
         flushJob?.cancel()
         if (config.sendTimeoutMs > 0) {
@@ -47,8 +49,13 @@ internal class BatchExecutor(
         }
     }
 
-    @Synchronized
     fun flush() {
+        synchronized(lock) {
+            performFlush()
+        }
+    }
+
+    private fun performFlush() {
         if (buffer.isEmpty()) return
 
         val items = ArrayList(buffer)

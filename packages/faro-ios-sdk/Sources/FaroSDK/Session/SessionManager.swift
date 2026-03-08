@@ -26,11 +26,18 @@ internal final class SessionManager {
     private let config: SessionConfig
     private let store: SessionStore
     private let logger: InternalLogger
+    private let lock = NSLock()
 
     private var currentSessionId: String?
     private var sessionStartTime: Date = .distantPast
     private var lastActivityTime: Date = .distantPast
-    private(set) var isSampled: Bool = true
+    private var _isSampled: Bool = true
+
+    var isSampled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isSampled
+    }
 
     init(config: SessionConfig, store: SessionStore, logger: InternalLogger) {
         self.config = config
@@ -39,6 +46,12 @@ internal final class SessionManager {
     }
 
     func start() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return lockedStart()
+    }
+
+    private func lockedStart() -> String {
         guard config.enabled else {
             logger.debug("Session tracking disabled")
             return ""
@@ -48,23 +61,26 @@ internal final class SessionManager {
             currentSessionId = stored.sessionId
             sessionStartTime = stored.startTime
             lastActivityTime = Date()
-            isSampled = stored.isSampled
+            _isSampled = stored.isSampled
             logger.debug("Restored session: \(currentSessionId ?? "")")
             return currentSessionId!
         }
 
-        return createNewSession()
+        return lockedCreateNewSession()
     }
 
     func getSessionId() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+
         if currentSessionId == nil {
-            return start()
+            return lockedStart()
         }
 
         let now = Date()
         if now.timeIntervalSince(sessionStartTime) > config.maxSessionDurationSeconds ||
            now.timeIntervalSince(lastActivityTime) > config.sessionTimeoutSeconds {
-            return createNewSession()
+            return lockedCreateNewSession()
         }
 
         lastActivityTime = now
@@ -72,7 +88,7 @@ internal final class SessionManager {
             store.saveSession(StoredSession(
                 sessionId: currentSessionId!,
                 startTime: sessionStartTime,
-                isSampled: isSampled
+                isSampled: _isSampled
             ))
         }
 
@@ -80,27 +96,30 @@ internal final class SessionManager {
     }
 
     func setSessionId(_ sessionId: String) {
+        lock.lock()
+        defer { lock.unlock() }
+
         currentSessionId = sessionId
         sessionStartTime = Date()
         lastActivityTime = sessionStartTime
-        isSampled = true
+        _isSampled = true
         if config.persistent {
             store.saveSession(StoredSession(sessionId: sessionId, startTime: sessionStartTime, isSampled: true))
         }
     }
 
-    private func createNewSession() -> String {
+    private func lockedCreateNewSession() -> String {
         let sessionId = generateSessionId()
         currentSessionId = sessionId
         sessionStartTime = Date()
         lastActivityTime = sessionStartTime
-        isSampled = Double.random(in: 0...1) < config.samplingRate
+        _isSampled = Double.random(in: 0...1) < config.samplingRate
 
         if config.persistent {
-            store.saveSession(StoredSession(sessionId: sessionId, startTime: sessionStartTime, isSampled: isSampled))
+            store.saveSession(StoredSession(sessionId: sessionId, startTime: sessionStartTime, isSampled: _isSampled))
         }
 
-        logger.debug("Created new session: \(sessionId) (sampled: \(isSampled))")
+        logger.debug("Created new session: \(sessionId) (sampled: \(_isSampled))")
         return sessionId
     }
 
