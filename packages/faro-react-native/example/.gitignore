@@ -11,3 +11,4 @@ android/
 *.orig.*
 web-build/
 tools/signals.log
+tools/signals.log.1

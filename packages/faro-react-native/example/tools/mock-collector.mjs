@@ -17,6 +17,7 @@
  * Usage:
  *   node mock-collector.mjs                     # default port 6543
  *   PORT=8080 node mock-collector.mjs           # custom port
+ *   MAX_LOG_SIZE=5242880 node mock-collector.mjs  # 5 MB log cap
  */
 
 import http from 'node:http';
@@ -28,6 +29,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '6543', 10);
 const LOG_FILE = path.join(__dirname, 'signals.log');
 const MAX_SIGNALS_IN_MEMORY = 500;
+const MAX_LOG_FILE_BYTES = parseInt(process.env.MAX_LOG_SIZE || String(10 * 1024 * 1024), 10); // 10 MB default
 
 // In-memory ring buffer of received signals
 const signals = [];
@@ -38,6 +40,20 @@ function timestamp() {
 
 function appendToLog(entry) {
   const line = JSON.stringify(entry) + '\n';
+
+  // Rotate if the log file exceeds the size limit
+  try {
+    const stat = fs.statSync(LOG_FILE);
+    if (stat.size >= MAX_LOG_FILE_BYTES) {
+      const rotated = LOG_FILE + '.1';
+      try { fs.unlinkSync(rotated); } catch {}
+      fs.renameSync(LOG_FILE, rotated);
+      console.log(`[${timestamp()}] Log rotated (was ${(stat.size / 1024 / 1024).toFixed(1)} MB)`);
+    }
+  } catch {
+    // File doesn't exist yet — that's fine
+  }
+
   fs.appendFileSync(LOG_FILE, line);
 }
 
@@ -153,10 +169,14 @@ function handleHealth(req, res) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
   });
+  let logSizeBytes = 0;
+  try { logSizeBytes = fs.statSync(LOG_FILE).size; } catch {}
   res.end(JSON.stringify({
     status: 'ok',
     uptime: process.uptime(),
     signalCount: signals.length,
+    logFileSizeBytes: logSizeBytes,
+    maxLogFileSizeBytes: MAX_LOG_FILE_BYTES,
   }));
 }
 
