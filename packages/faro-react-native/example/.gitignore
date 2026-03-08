@@ -10,3 +10,4 @@ android/
 *.mobileprovision
 *.orig.*
 web-build/
+tools/signals.log
