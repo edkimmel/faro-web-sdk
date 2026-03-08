@@ -2,6 +2,7 @@ package com.grafana.faro.reactnative
 
 import android.os.Build
 import android.util.DisplayMetrics
+import android.util.Log
 import com.facebook.react.bridge.*
 import com.grafana.faro.Faro
 import com.grafana.faro.FaroConfig
@@ -14,6 +15,10 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
 
     override fun getName(): String = "FaroReactNative"
 
+    companion object {
+        private const val TAG = "FaroReactNative"
+    }
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = false
@@ -24,25 +29,39 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun initialize(configJson: String, promise: Promise) {
+        Log.d(TAG, "initialize() called")
         try {
             val config = parseConfig(configJson)
+            Log.d(TAG, "Config parsed — collectorUrl=${config.collectorUrl}")
             val app = reactApplicationContext.applicationContext as android.app.Application
             faroInstance = Faro.initialize(app, config)
+            Log.i(TAG, "Native SDK initialized successfully")
             promise.resolve(null)
         } catch (e: Exception) {
             // If already initialized, just get the existing instance
             if (Faro.isInitialized()) {
                 faroInstance = Faro.getInstance()
+                Log.i(TAG, "Reusing existing native SDK instance")
                 promise.resolve(null)
             } else {
+                Log.e(TAG, "initialize() failed: ${e.message}", e)
                 promise.reject("FARO_INIT_ERROR", e.message, e)
             }
         }
     }
 
+    private fun ensureInstance(caller: String): FaroInstance? {
+        val instance = faroInstance
+        if (instance == null) {
+            Log.w(TAG, "$caller called but native SDK not initialized — dropping signal")
+        }
+        return instance
+    }
+
     @ReactMethod
     fun pushLog(level: String, message: String, context: String?, timestamp: String?) {
-        val instance = faroInstance ?: return
+        val instance = ensureInstance("pushLog") ?: return
+        Log.d(TAG, "pushLog(level=$level, message=${message.take(80)})")
         val ctx = context?.let { parseStringMap(it) }
         instance.pushLog(
             message = message,
@@ -53,7 +72,8 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun pushError(type: String, value: String, stacktrace: String?, context: String?) {
-        val instance = faroInstance ?: return
+        val instance = ensureInstance("pushError") ?: return
+        Log.d(TAG, "pushError(type=$type, value=${value.take(80)})")
         val ctx = context?.let { parseStringMap(it) }
         val st = stacktrace?.let { parseStacktrace(it) }
         instance.pushError(
@@ -66,7 +86,8 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun pushMeasurement(type: String, values: String, context: String?) {
-        val instance = faroInstance ?: return
+        val instance = ensureInstance("pushMeasurement") ?: return
+        Log.d(TAG, "pushMeasurement(type=$type, values=$values)")
         val parsedValues = parseDoubleMap(values)
         val ctx = context?.let { parseStringMap(it) }
         instance.pushMeasurement(
@@ -78,7 +99,8 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun pushEvent(name: String, attributes: String?, domain: String?) {
-        val instance = faroInstance ?: return
+        val instance = ensureInstance("pushEvent") ?: return
+        Log.d(TAG, "pushEvent(name=$name, domain=$domain)")
         val attrs = attributes?.let { parseStringMap(it) }
         instance.pushEvent(
             name = name,
@@ -89,33 +111,39 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun setUser(userJson: String) {
-        val instance = faroInstance ?: return
+        val instance = ensureInstance("setUser") ?: return
+        Log.d(TAG, "setUser()")
         val user = parseUser(userJson)
         instance.setUser(user)
     }
 
     @ReactMethod
     fun resetUser() {
+        Log.d(TAG, "resetUser()")
         faroInstance?.resetUser()
     }
 
     @ReactMethod
     fun setSession(sessionId: String) {
+        Log.d(TAG, "setSession(id=$sessionId)")
         faroInstance?.setSession(sessionId)
     }
 
     @ReactMethod
     fun setView(viewName: String) {
+        Log.d(TAG, "setView(name=$viewName)")
         faroInstance?.setView(viewName)
     }
 
     @ReactMethod
     fun pause() {
+        Log.d(TAG, "pause()")
         faroInstance?.pause()
     }
 
     @ReactMethod
     fun unpause() {
+        Log.d(TAG, "unpause()")
         faroInstance?.unpause()
     }
 

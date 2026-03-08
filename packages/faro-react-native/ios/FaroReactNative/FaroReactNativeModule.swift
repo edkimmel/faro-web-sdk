@@ -1,42 +1,56 @@
 import Foundation
+import os.log
 import FaroSDK
 
 @objc(FaroReactNative)
 class FaroReactNativeModule: NSObject {
     private var faroInstance: FaroInstance?
+    private let logger = OSLog(subsystem: "com.grafana.faro.reactnative", category: "Bridge")
 
     @objc
     func initialize(_ configJson: String, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
+        os_log(.info, log: logger, "initialize() called")
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
             do {
-                let config = try self?.parseConfig(configJson)
-                guard let config = config else {
-                    reject("FARO_INIT_ERROR", "Failed to parse config", nil)
-                    return
-                }
+                let config = try self.parseConfig(configJson)
+                os_log(.info, log: self.logger, "Config parsed — collectorUrl=%{public}@", config.collectorUrl)
 
                 if Faro.shared.isInitialized {
-                    self?.faroInstance = Faro.shared.getInstance()
+                    self.faroInstance = Faro.shared.getInstance()
+                    os_log(.info, log: self.logger, "Reusing existing native SDK instance")
                 } else {
-                    self?.faroInstance = Faro.shared.initialize(config: config)
+                    self.faroInstance = Faro.shared.initialize(config: config)
+                    os_log(.info, log: self.logger, "Native SDK initialized successfully")
                 }
                 resolve(nil)
             } catch {
+                os_log(.error, log: self.logger, "initialize() failed: %{public}@", error.localizedDescription)
                 reject("FARO_INIT_ERROR", error.localizedDescription, error)
             }
         }
     }
 
+    private func ensureInstance(_ caller: String) -> FaroInstance? {
+        guard let instance = faroInstance else {
+            os_log(.fault, log: logger, "%{public}@ called but native SDK not initialized — dropping signal", caller)
+            return nil
+        }
+        return instance
+    }
+
     @objc
     func pushLog(_ level: String, message: String, context: String?, timestamp: String?) {
-        guard let instance = faroInstance else { return }
+        guard let instance = ensureInstance("pushLog") else { return }
+        os_log(.debug, log: logger, "pushLog(level=%{public}@, message=%{public}@)", level, String(message.prefix(80)))
         let ctx = context.flatMap { parseStringDict($0) }
         instance.pushLog(message, level: LogLevel.fromString(level), context: ctx)
     }
 
     @objc
     func pushError(_ type: String, value: String, stacktrace: String?, context: String?) {
-        guard let instance = faroInstance else { return }
+        guard let instance = ensureInstance("pushError") else { return }
+        os_log(.debug, log: logger, "pushError(type=%{public}@, value=%{public}@)", type, String(value.prefix(80)))
         let ctx = context.flatMap { parseStringDict($0) }
         let st = stacktrace.flatMap { parseStacktrace($0) }
         instance.pushError(type: type, value: value, stacktrace: st, context: ctx)
@@ -44,7 +58,8 @@ class FaroReactNativeModule: NSObject {
 
     @objc
     func pushMeasurement(_ type: String, values: String, context: String?) {
-        guard let instance = faroInstance else { return }
+        guard let instance = ensureInstance("pushMeasurement") else { return }
+        os_log(.debug, log: logger, "pushMeasurement(type=%{public}@, values=%{public}@)", type, values)
         let parsedValues = parseDoubleDict(values)
         let ctx = context.flatMap { parseStringDict($0) }
         instance.pushMeasurement(type: type, values: parsedValues, context: ctx)
@@ -52,14 +67,16 @@ class FaroReactNativeModule: NSObject {
 
     @objc
     func pushEvent(_ name: String, attributes: String?, domain: String?) {
-        guard let instance = faroInstance else { return }
+        guard let instance = ensureInstance("pushEvent") else { return }
+        os_log(.debug, log: logger, "pushEvent(name=%{public}@, domain=%{public}@)", name, domain ?? "nil")
         let attrs = attributes.flatMap { parseStringDict($0) }
         instance.pushEvent(name, attributes: attrs, domain: domain)
     }
 
     @objc
     func setUser(_ userJson: String) {
-        guard let instance = faroInstance else { return }
+        guard let instance = ensureInstance("setUser") else { return }
+        os_log(.debug, log: logger, "setUser()")
         if let user = parseUser(userJson) {
             instance.setUser(user)
         }
@@ -67,26 +84,31 @@ class FaroReactNativeModule: NSObject {
 
     @objc
     func resetUser() {
+        os_log(.debug, log: logger, "resetUser()")
         faroInstance?.resetUser()
     }
 
     @objc
     func setSession(_ sessionId: String) {
+        os_log(.debug, log: logger, "setSession(id=%{public}@)", sessionId)
         faroInstance?.setSession(sessionId)
     }
 
     @objc
     func setView(_ viewName: String) {
+        os_log(.debug, log: logger, "setView(name=%{public}@)", viewName)
         faroInstance?.setView(viewName)
     }
 
     @objc
     func pause() {
+        os_log(.debug, log: logger, "pause()")
         faroInstance?.pause()
     }
 
     @objc
     func unpause() {
+        os_log(.debug, log: logger, "unpause()")
         faroInstance?.unpause()
     }
 
