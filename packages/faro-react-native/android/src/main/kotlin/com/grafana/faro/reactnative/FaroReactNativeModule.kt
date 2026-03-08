@@ -38,15 +38,8 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
             Log.i(TAG, "Native SDK initialized successfully")
             promise.resolve(null)
         } catch (e: Exception) {
-            // If already initialized, just get the existing instance
-            if (Faro.isInitialized()) {
-                faroInstance = Faro.getInstance()
-                Log.i(TAG, "Reusing existing native SDK instance")
-                promise.resolve(null)
-            } else {
-                Log.e(TAG, "initialize() failed: ${e.message}", e)
-                promise.reject("FARO_INIT_ERROR", e.message, e)
-            }
+            Log.e(TAG, "initialize() failed: ${e.message}", e)
+            promise.reject("FARO_INIT_ERROR", e.message, e)
         }
     }
 

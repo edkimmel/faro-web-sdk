@@ -41,8 +41,9 @@ public final class Faro {
 
         let logger = InternalLogger(level: config.internalLoggerLevel)
         let faroInstance = try FaroInstance(config: config, logger: logger)
-        instance = faroInstance
         faroInstance.start()
+        // Only set instance after start() succeeds
+        instance = faroInstance
         return faroInstance
     }
 

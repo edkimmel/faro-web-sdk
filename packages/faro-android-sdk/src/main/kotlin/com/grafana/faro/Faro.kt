@@ -19,8 +19,8 @@ import com.grafana.faro.internal.InternalLogger
  *
  * Then access from anywhere:
  * ```kotlin
- * Faro.getInstance().pushLog("Something happened")
- * Faro.getInstance().pushError(exception)
+ * Faro.getInstance()?.pushLog("Something happened")
+ * Faro.getInstance()?.pushError(exception)
  * ```
  */
 object Faro {
@@ -37,30 +37,28 @@ object Faro {
      */
     fun initialize(application: Application, config: FaroConfig): FaroInstance {
         synchronized(this) {
-            if (instance != null) {
-                throw IllegalStateException(
-                    "Faro is already initialized. Call Faro.getInstance() to access the existing instance."
-                )
+            instance?.let { existing ->
+                val logger = InternalLogger(config.internalLoggerLevel)
+                logger.warn("Faro is already initialized. Returning existing instance.")
+                return existing
             }
 
             val logger = InternalLogger(config.internalLoggerLevel)
             val faroInstance = FaroInstance(application, config, logger)
-            instance = faroInstance
             faroInstance.start()
+            // Only set instance after start() succeeds
+            instance = faroInstance
             return faroInstance
         }
     }
 
     /**
-     * Get the initialized Faro instance.
+     * Get the initialized Faro instance, if available.
      *
-     * @return The FaroInstance
-     * @throws IllegalStateException if Faro has not been initialized
+     * @return The FaroInstance, or null if not yet initialized
      */
-    fun getInstance(): FaroInstance {
-        return instance ?: throw IllegalStateException(
-            "Faro has not been initialized. Call Faro.initialize() first."
-        )
+    fun getInstance(): FaroInstance? {
+        return instance
     }
 
     /**

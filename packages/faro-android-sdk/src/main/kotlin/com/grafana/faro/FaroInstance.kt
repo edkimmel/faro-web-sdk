@@ -26,7 +26,7 @@ class FaroInstance internal constructor(
     private val httpTransport: HttpTransport
     private val diskBufferTransport: DiskBufferTransport
     private val batchExecutor: BatchExecutor
-    private val instrumentations = mutableListOf<Instrumentation>()
+    private val instrumentations = java.util.concurrent.CopyOnWriteArrayList<Instrumentation>()
 
     @Volatile
     private var isPaused = false
@@ -261,8 +261,18 @@ class FaroInstance internal constructor(
             meta = buildMeta()
         )
 
-        // Apply beforeSend hook
-        val processedItem = config.beforeSend?.invoke(item)
+        // Apply beforeSend hook — user code, must not crash the host app
+        val processedItem: TransportItem? = if (config.beforeSend != null) {
+            try {
+                config.beforeSend.invoke(item)
+            } catch (e: Exception) {
+                logger.error("beforeSend hook threw an exception, sending original item", e)
+                item
+            }
+        } else {
+            item
+        }
+
         if (processedItem == null) {
             logger.debug("Signal dropped by beforeSend hook")
             return

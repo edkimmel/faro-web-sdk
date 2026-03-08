@@ -25,57 +25,64 @@ class CrashInstrumentation : Instrumentation {
         previousHandler = Thread.getDefaultUncaughtExceptionHandler()
 
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            handleCrash(thread, throwable)
-
-            // Forward to previous handler (Crashlytics, etc.)
-            previousHandler?.uncaughtException(thread, throwable)
+            try {
+                handleCrash(thread, throwable)
+            } catch (_: Throwable) {
+                // Best effort — never prevent the previous handler from running
+            } finally {
+                // Always forward to previous handler (Crashlytics, etc.)
+                previousHandler?.uncaughtException(thread, throwable)
+            }
         }
     }
 
     private fun handleCrash(thread: Thread, throwable: Throwable) {
-        try {
-            val exception = ExceptionEvent(
-                type = throwable.javaClass.name,
-                value = throwable.message ?: "Unknown error",
-                timestamp = Clock.nowTimestamp(),
-                stacktrace = parseStacktrace(throwable),
-                context = mapOf(
-                    "thread" to thread.name,
-                    "isFatal" to "true",
-                    "source" to "native_crash"
-                )
+        val exception = ExceptionEvent(
+            type = throwable.javaClass.name,
+            value = throwable.message ?: "Unknown error",
+            timestamp = Clock.nowTimestamp(),
+            stacktrace = parseStacktrace(throwable),
+            context = mapOf(
+                "thread" to thread.name,
+                "isFatal" to "true",
+                "source" to "native_crash"
             )
+        )
 
-            // Write crash to disk synchronously - this must complete before process dies
-            faro?.writeCrashToDisk(exception)
-        } catch (_: Exception) {
-            // Best effort in crash handler - don't throw
-        }
+        // Write crash to disk synchronously - this must complete before process dies
+        faro?.writeCrashToDisk(exception)
     }
 
     private fun parseStacktrace(throwable: Throwable): Stacktrace {
-        val frames = throwable.stackTrace.map { element ->
+        val allFrames = mutableListOf<ExceptionStackFrame>()
+
+        // Add top-level exception frames
+        allFrames.addAll(throwable.stackTrace.map { element ->
             ExceptionStackFrame(
                 filename = element.fileName ?: "unknown",
                 function = "${element.className}.${element.methodName}",
                 lineno = element.lineNumber.takeIf { it > 0 },
                 colno = null
             )
-        }
+        })
 
-        // Include cause chain
-        val causeFrames = throwable.cause?.let { cause ->
-            cause.stackTrace.map { element ->
+        // Walk full cause chain (cap at 10 to prevent infinite loops from circular causes)
+        var cause = throwable.cause
+        var depth = 0
+        while (cause != null && depth < 10) {
+            allFrames.addAll(cause.stackTrace.map { element ->
                 ExceptionStackFrame(
                     filename = element.fileName ?: "unknown",
-                    function = "Caused by ${cause.javaClass.name}: ${element.className}.${element.methodName}",
+                    function = "Caused by ${cause!!.javaClass.name}: ${element.className}.${element.methodName}",
                     lineno = element.lineNumber.takeIf { it > 0 },
                     colno = null
                 )
-            }
-        } ?: emptyList()
+            })
+            cause = cause.cause
+            depth++
+        }
 
-        return Stacktrace(frames = frames + causeFrames)
+        return Stacktrace(frames = allFrames)
     }
 
     override fun uninstall() {

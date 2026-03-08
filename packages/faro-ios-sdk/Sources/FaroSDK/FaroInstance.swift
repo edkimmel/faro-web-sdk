@@ -10,7 +10,11 @@ public final class FaroInstance {
     private let httpTransport: HttpTransport
     private let diskBufferTransport: DiskBufferTransport
     private let batchExecutor: BatchExecutor
-    private var instrumentations: [Instrumentation] = []
+    private let instrumentationsQueue = DispatchQueue(label: "com.grafana.faro.instance.instrumentations")
+    private var _instrumentations: [Instrumentation] = []
+    private var instrumentations: [Instrumentation] {
+        get { instrumentationsQueue.sync { _instrumentations } }
+    }
 
     private let stateQueue = DispatchQueue(label: "com.grafana.faro.instance.state")
     private var _isPaused = false
@@ -91,7 +95,7 @@ public final class FaroInstance {
 
     public func installInstrumentation(_ instrumentation: Instrumentation) {
         instrumentation.install(faro: self)
-        instrumentations.append(instrumentation)
+        instrumentationsQueue.sync { _instrumentations.append(instrumentation) }
         logger.debug("Installed instrumentation: \(instrumentation.name)")
     }
 
@@ -222,8 +226,9 @@ public final class FaroInstance {
     }
 
     public func shutdown() {
-        instrumentations.forEach { $0.uninstall() }
-        instrumentations.removeAll()
+        let currentInstrumentations = instrumentations
+        currentInstrumentations.forEach { $0.uninstall() }
+        instrumentationsQueue.sync { _instrumentations.removeAll() }
         batchExecutor.shutdown()
         diskBufferTransport.shutdown()
     }

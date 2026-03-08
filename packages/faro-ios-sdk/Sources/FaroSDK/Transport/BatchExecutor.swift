@@ -3,10 +3,12 @@ import Foundation
 public struct BatchConfig {
     public let itemLimit: Int
     public let sendTimeoutMs: Int
+    public let maxBufferSize: Int
 
-    public init(itemLimit: Int = 30, sendTimeoutMs: Int = 5000) {
+    public init(itemLimit: Int = 30, sendTimeoutMs: Int = 5000, maxBufferSize: Int = 1000) {
         self.itemLimit = itemLimit
         self.sendTimeoutMs = sendTimeoutMs
+        self.maxBufferSize = maxBufferSize
     }
 }
 
@@ -36,6 +38,11 @@ internal final class BatchExecutor {
                 self.logger.debug("BatchExecutor is paused, dropping item")
                 return
             }
+            if self.buffer.count >= self.config.maxBufferSize {
+                self.logger.warn("BatchExecutor buffer full (\(self.config.maxBufferSize)), dropping oldest items")
+                self.buffer.removeFirst(self.buffer.count - self.config.maxBufferSize + 1)
+            }
+
             self.buffer.append(item)
 
             if self.buffer.count >= self.config.itemLimit {

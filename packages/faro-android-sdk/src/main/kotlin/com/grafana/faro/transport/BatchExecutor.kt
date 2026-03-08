@@ -2,11 +2,11 @@ package com.grafana.faro.transport
 
 import com.grafana.faro.internal.InternalLogger
 import kotlinx.coroutines.*
-import java.util.concurrent.CopyOnWriteArrayList
 
 data class BatchConfig(
     val itemLimit: Int = 30,
-    val sendTimeoutMs: Long = 5000L
+    val sendTimeoutMs: Long = 5000L,
+    val maxBufferSize: Int = 1000
 )
 
 internal class BatchExecutor(
@@ -29,6 +29,11 @@ internal class BatchExecutor(
         }
 
         synchronized(lock) {
+            if (buffer.size >= config.maxBufferSize) {
+                logger.warn("BatchExecutor buffer full (${config.maxBufferSize}), dropping oldest items")
+                buffer.subList(0, buffer.size - config.maxBufferSize + 1).clear()
+            }
+
             buffer.add(item)
 
             if (buffer.size >= config.itemLimit) {
@@ -72,7 +77,23 @@ internal class BatchExecutor(
     }
 
     fun shutdown() {
-        flush()
+        // Flush synchronously on shutdown to ensure final items are sent
+        val finalItems: List<TransportItem>
+        synchronized(lock) {
+            if (buffer.isEmpty()) {
+                scope.cancel()
+                return
+            }
+            finalItems = ArrayList(buffer)
+            buffer.clear()
+            flushJob?.cancel()
+        }
+
+        try {
+            onFlush(finalItems)
+        } catch (e: Exception) {
+            logger.error("Error flushing batch on shutdown", e)
+        }
         scope.cancel()
     }
 }

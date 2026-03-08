@@ -91,8 +91,9 @@ internal class HttpTransport(
 
         // Try parsing as HTTP date
         try {
-            val date = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", java.util.Locale.US)
-                .parse(header)
+            val sdf = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", java.util.Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("GMT")
+            val date = sdf.parse(header)
             if (date != null) {
                 return maxOf(0, date.time - System.currentTimeMillis())
             }

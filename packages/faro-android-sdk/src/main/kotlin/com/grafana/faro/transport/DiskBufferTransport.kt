@@ -3,6 +3,8 @@ package com.grafana.faro.transport
 import com.grafana.faro.internal.InternalLogger
 import com.grafana.faro.persistence.DiskBuffer
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Transport wrapper that writes signals to disk first, then sends via HTTP.
@@ -18,12 +20,14 @@ internal class DiskBufferTransport(
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var retryJob: Job? = null
+    private val sendMutex = Mutex()
 
     fun start() {
-        // Send any pending crashes from previous session first
-        sendPendingCrashes()
-        // Then send any pending signals
-        sendPendingSignals()
+        // Send any pending crashes and signals off the calling thread
+        scope.launch {
+            sendPendingCrashes()
+            sendPendingSignals()
+        }
         // Schedule periodic retry for failed sends
         startRetryLoop()
     }
@@ -47,8 +51,8 @@ internal class DiskBufferTransport(
         diskBuffer.writeCrash(body)
     }
 
-    private fun sendPendingCrashes() {
-        scope.launch {
+    private suspend fun sendPendingCrashes() {
+        sendMutex.withLock {
             val crashes = diskBuffer.readPendingCrashes()
             for (crash in crashes) {
                 try {
@@ -63,15 +67,17 @@ internal class DiskBufferTransport(
         }
     }
 
-    private fun sendPendingSignals() {
-        val signals = diskBuffer.readPendingSignals()
-        for (signal in signals) {
-            try {
-                httpTransport.send(signal.body)
-                diskBuffer.deleteFile(signal)
-            } catch (e: Exception) {
-                logger.debug("Failed to send signal, will retry later")
-                break
+    private suspend fun sendPendingSignals() {
+        sendMutex.withLock {
+            val signals = diskBuffer.readPendingSignals()
+            for (signal in signals) {
+                try {
+                    httpTransport.send(signal.body)
+                    diskBuffer.deleteFile(signal)
+                } catch (e: Exception) {
+                    logger.debug("Failed to send signal, will retry later")
+                    break
+                }
             }
         }
     }
