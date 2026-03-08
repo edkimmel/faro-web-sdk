@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Faro React Native Example",
+    "slug": "faro-react-native-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "faro-example",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.grafana.faro.reactnative.example"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F46800"
+      },
+      "package": "com.grafana.faro.reactnative.example"
+    },
+    "plugins": ["expo-router"]
+  }
+}
