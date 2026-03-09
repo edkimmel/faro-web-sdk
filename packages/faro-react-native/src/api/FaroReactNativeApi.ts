@@ -1,5 +1,5 @@
 import type { NativeFaroModule } from '../native/FaroNativeModule';
-import type { MetaUser } from '../config/types';
+import type { MetaPage, MetaUser } from '../config/types';
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'log' | 'warn' | 'error';
 
@@ -86,6 +86,14 @@ export class FaroReactNativeApi {
 
   setView(viewName: string): void {
     this.nativeModule?.setView(viewName);
+  }
+
+  setPage(page: MetaPage): void {
+    this.nativeModule?.setPage(JSON.stringify(page));
+  }
+
+  resetPage(): void {
+    this.nativeModule?.resetPage();
   }
 
   setSession(sessionId: string): void {
