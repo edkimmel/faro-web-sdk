@@ -24,5 +24,6 @@ data class FaroConfig(
     val beforeSend: ((TransportItem) -> TransportItem?)? = null,
     val ignoreErrors: List<Regex> = emptyList(),
     val ignoreUrls: List<Regex> = emptyList(),
-    val eventDomain: String = "app"
+    val eventDomain: String = "app",
+    val transportHeaders: Map<String, String> = emptyMap()
 )

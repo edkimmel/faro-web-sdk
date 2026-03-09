@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 internal class HttpTransport(
     private val collectorUrl: String,
     private val apiKey: String?,
+    private val customHeaders: Map<String, String> = emptyMap(),
     private val logger: InternalLogger,
     private val onRateLimited: ((retryAfterMs: Long) -> Unit)? = null
 ) : Transport {
@@ -45,6 +46,11 @@ internal class HttpTransport(
             .url(collectorUrl)
             .post(jsonBody.toRequestBody(jsonMediaType))
             .header("Content-Type", "application/json")
+
+        // Apply custom headers first so built-in headers take precedence
+        for ((key, value) in customHeaders) {
+            requestBuilder.header(key, value)
+        }
 
         apiKey?.let {
             requestBuilder.header("x-api-key", it)

@@ -37,6 +37,9 @@ class FaroInstance internal constructor(
     @Volatile
     private var currentView: MetaView? = null
 
+    @Volatile
+    private var currentPage: MetaPage? = null
+
     companion object {
         const val SDK_NAME = "faro-android-sdk"
         const val SDK_VERSION = "1.0.0"
@@ -55,6 +58,7 @@ class FaroInstance internal constructor(
         httpTransport = HttpTransport(
             collectorUrl = config.collectorUrl,
             apiKey = config.apiKey,
+            customHeaders = config.transportHeaders,
             logger = logger
         )
 
@@ -212,6 +216,14 @@ class FaroInstance internal constructor(
         currentView = MetaView(name = viewName)
     }
 
+    fun setPage(page: MetaPage?) {
+        currentPage = page
+    }
+
+    fun resetPage() {
+        currentPage = null
+    }
+
     fun setSession(sessionId: String) {
         sessionManager.setSessionId(sessionId)
     }
@@ -326,6 +338,7 @@ class FaroInstance internal constructor(
             app = config.app,
             user = currentUser,
             session = MetaSession(id = sessionManager.getSessionId()),
+            page = currentPage,
             view = currentView,
             device = buildDeviceMeta()
         )

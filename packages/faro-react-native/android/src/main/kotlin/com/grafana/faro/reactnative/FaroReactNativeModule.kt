@@ -7,6 +7,9 @@ import com.facebook.react.bridge.*
 import com.grafana.faro.Faro
 import com.grafana.faro.FaroConfig
 import com.grafana.faro.FaroInstance
+import com.grafana.faro.internal.InternalLoggerLevel
+import com.grafana.faro.session.SessionConfig
+import com.grafana.faro.transport.BatchConfig
 import com.grafana.faro.api.models.*
 import kotlinx.serialization.json.*
 
@@ -129,6 +132,20 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
     }
 
     @ReactMethod
+    fun setPage(pageJson: String) {
+        val instance = ensureInstance("setPage") ?: return
+        Log.d(TAG, "setPage()")
+        val page = parsePage(pageJson)
+        instance.setPage(page)
+    }
+
+    @ReactMethod
+    fun resetPage() {
+        Log.d(TAG, "resetPage()")
+        faroInstance?.resetPage()
+    }
+
+    @ReactMethod
     fun pause() {
         Log.d(TAG, "pause()")
         faroInstance?.pause()
@@ -176,15 +193,51 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
 
     private fun parseConfig(configJson: String): FaroConfig {
         val obj = json.parseToJsonElement(configJson).jsonObject
+        val batchConfig = obj["batchConfig"]?.jsonObject?.let { bc ->
+            BatchConfig(
+                itemLimit = bc["itemLimit"]?.jsonPrimitive?.int ?: 30,
+                sendTimeoutMs = bc["sendTimeoutMs"]?.jsonPrimitive?.long ?: 5000L,
+                maxBufferSize = bc["maxBufferSize"]?.jsonPrimitive?.int ?: 1000
+            )
+        } ?: BatchConfig()
+
+        val sessionConfig = obj["sessionTracking"]?.jsonObject?.let { sc ->
+            SessionConfig(
+                enabled = sc["enabled"]?.jsonPrimitive?.boolean ?: true,
+                persistent = sc["persistent"]?.jsonPrimitive?.boolean ?: true,
+                maxSessionDurationMs = sc["maxSessionDurationMs"]?.jsonPrimitive?.long ?: (4 * 60 * 60 * 1000),
+                sessionTimeoutMs = sc["sessionTimeoutMs"]?.jsonPrimitive?.long ?: (15 * 60 * 1000),
+                samplingRate = sc["samplingRate"]?.jsonPrimitive?.double ?: 1.0
+            )
+        } ?: SessionConfig()
+
+        val loggerLevel = when (obj["internalLoggerLevel"]?.jsonPrimitive?.contentOrNull) {
+            "verbose" -> InternalLoggerLevel.VERBOSE
+            "debug" -> InternalLoggerLevel.DEBUG
+            "info" -> InternalLoggerLevel.INFO
+            "warn" -> InternalLoggerLevel.WARN
+            "error" -> InternalLoggerLevel.ERROR
+            "none" -> InternalLoggerLevel.NONE
+            else -> InternalLoggerLevel.ERROR
+        }
+
+        val transportHeaders = obj["transportHeaders"]?.jsonObject?.let { headers ->
+            headers.entries.associate { it.key to it.value.jsonPrimitive.content }
+        } ?: emptyMap()
+
         return FaroConfig(
             collectorUrl = obj["collectorUrl"]?.jsonPrimitive?.content ?: "",
             apiKey = obj["apiKey"]?.jsonPrimitive?.contentOrNull,
             app = parseApp(obj["app"]?.jsonObject),
+            sessionTracking = sessionConfig,
             enableCrashReporting = obj["enableCrashReporting"]?.jsonPrimitive?.boolean ?: false,
             enableAnrDetection = obj["enableAnrDetection"]?.jsonPrimitive?.boolean ?: true,
             enableLifecycleTracking = obj["enableLifecycleTracking"]?.jsonPrimitive?.boolean ?: true,
             enableNetworkMonitoring = obj["enableNetworkMonitoring"]?.jsonPrimitive?.boolean ?: true,
-            eventDomain = obj["eventDomain"]?.jsonPrimitive?.contentOrNull ?: "app"
+            batchConfig = batchConfig,
+            internalLoggerLevel = loggerLevel,
+            eventDomain = obj["eventDomain"]?.jsonPrimitive?.contentOrNull ?: "app",
+            transportHeaders = transportHeaders
         )
     }
 
@@ -209,6 +262,17 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
             fullName = obj["fullName"]?.jsonPrimitive?.contentOrNull,
             roles = obj["roles"]?.jsonPrimitive?.contentOrNull,
             hash = obj["hash"]?.jsonPrimitive?.contentOrNull,
+            attributes = obj["attributes"]?.jsonObject?.let { attrs ->
+                attrs.entries.associate { it.key to it.value.jsonPrimitive.content }
+            }
+        )
+    }
+
+    private fun parsePage(pageJson: String): MetaPage {
+        val obj = json.parseToJsonElement(pageJson).jsonObject
+        return MetaPage(
+            id = obj["id"]?.jsonPrimitive?.contentOrNull,
+            url = obj["url"]?.jsonPrimitive?.contentOrNull,
             attributes = obj["attributes"]?.jsonObject?.let { attrs ->
                 attrs.entries.associate { it.key to it.value.jsonPrimitive.content }
             }
