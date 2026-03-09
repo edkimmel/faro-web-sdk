@@ -10,6 +10,7 @@ internal final class HttpTransport: Transport {
     private let collectorUrl: URL
     private let apiKey: String?
     private let logger: InternalLogger
+    private let customHeaders: [String: String]
     private let session: URLSession
     private var disabledUntil: Date = .distantPast
 
@@ -17,13 +18,14 @@ internal final class HttpTransport: Transport {
     private static let accepted = 202
     private static let defaultRateLimitBackoffSeconds: TimeInterval = 5.0
 
-    init(collectorUrl: String, apiKey: String?, logger: InternalLogger) throws {
+    init(collectorUrl: String, apiKey: String?, customHeaders: [String: String] = [:], logger: InternalLogger) throws {
         guard let url = URL(string: collectorUrl) else {
             throw HttpTransportError.invalidCollectorUrl(collectorUrl)
         }
         self.collectorUrl = url
         self.apiKey = apiKey
         self.logger = logger
+        self.customHeaders = customHeaders
 
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 10
@@ -40,6 +42,10 @@ internal final class HttpTransport: Transport {
         let jsonData = try body.toJSON()
 
         var request = URLRequest(url: collectorUrl)
+        // Apply custom headers first so built-in headers take precedence
+        for (key, value) in customHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 

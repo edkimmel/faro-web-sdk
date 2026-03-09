@@ -17,6 +17,7 @@ public struct FaroConfig {
     public let ignoreErrors: [NSRegularExpression]
     public let ignoreUrls: [NSRegularExpression]
     public let eventDomain: String
+    public let transportHeaders: [String: String]
 
     public init(
         collectorUrl: String,
@@ -34,7 +35,8 @@ public struct FaroConfig {
         beforeSend: ((TransportItem) -> TransportItem?)? = nil,
         ignoreErrors: [NSRegularExpression] = [],
         ignoreUrls: [NSRegularExpression] = [],
-        eventDomain: String = "app"
+        eventDomain: String = "app",
+        transportHeaders: [String: String] = [:]
     ) {
         self.collectorUrl = collectorUrl
         self.app = app
@@ -52,5 +54,6 @@ public struct FaroConfig {
         self.ignoreErrors = ignoreErrors
         self.ignoreUrls = ignoreUrls
         self.eventDomain = eventDomain
+        self.transportHeaders = transportHeaders
     }
 }

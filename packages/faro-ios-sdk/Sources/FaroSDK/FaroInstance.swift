@@ -20,6 +20,7 @@ public final class FaroInstance {
     private var _isPaused = false
     private var _currentUser: MetaUser?
     private var _currentView: MetaView?
+    private var _currentPage: MetaPage?
 
     private var isPaused: Bool {
         get { stateQueue.sync { _isPaused } }
@@ -32,6 +33,10 @@ public final class FaroInstance {
     private var currentView: MetaView? {
         get { stateQueue.sync { _currentView } }
         set { stateQueue.sync { _currentView = newValue } }
+    }
+    private var currentPage: MetaPage? {
+        get { stateQueue.sync { _currentPage } }
+        set { stateQueue.sync { _currentPage = newValue } }
     }
 
     static let sdkName = "faro-ios-sdk"
@@ -52,6 +57,7 @@ public final class FaroInstance {
         httpTransport = try HttpTransport(
             collectorUrl: config.collectorUrl,
             apiKey: config.apiKey,
+            customHeaders: config.transportHeaders,
             logger: logger
         )
 
@@ -203,6 +209,14 @@ public final class FaroInstance {
         currentView = MetaView(name: viewName)
     }
 
+    public func setPage(_ page: MetaPage?) {
+        currentPage = page
+    }
+
+    public func resetPage() {
+        currentPage = nil
+    }
+
     public func setSession(_ sessionId: String) {
         sessionManager.setSessionId(sessionId)
     }
@@ -329,6 +343,7 @@ public final class FaroInstance {
             app: config.app,
             user: currentUser,
             session: MetaSession(id: sessionManager.getSessionId()),
+            page: currentPage,
             view: currentView,
             device: buildDeviceMeta()
         )

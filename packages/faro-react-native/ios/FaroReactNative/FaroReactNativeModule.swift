@@ -102,6 +102,21 @@ class FaroReactNativeModule: NSObject {
     }
 
     @objc
+    func setPage(_ pageJson: String) {
+        guard let instance = ensureInstance("setPage") else { return }
+        os_log(.debug, log: logger, "setPage()")
+        if let page = parsePage(pageJson) {
+            instance.setPage(page)
+        }
+    }
+
+    @objc
+    func resetPage() {
+        os_log(.debug, log: logger, "resetPage()")
+        faroInstance?.resetPage()
+    }
+
+    @objc
     func pause() {
         os_log(.debug, log: logger, "pause()")
         faroInstance?.pause()
@@ -167,15 +182,53 @@ class FaroReactNativeModule: NSObject {
             bundleId: appObj["bundleId"] as? String
         )
 
+        var batchConfig = BatchConfig()
+        if let batchObj = obj["batchConfig"] as? [String: Any] {
+            batchConfig = BatchConfig(
+                itemLimit: batchObj["itemLimit"] as? Int ?? 30,
+                sendTimeoutMs: batchObj["sendTimeoutMs"] as? Int ?? 5000,
+                maxBufferSize: batchObj["maxBufferSize"] as? Int ?? 1000
+            )
+        }
+
+        var sessionConfig = SessionConfig()
+        if let sessionObj = obj["sessionTracking"] as? [String: Any] {
+            sessionConfig = SessionConfig(
+                enabled: sessionObj["enabled"] as? Bool ?? true,
+                persistent: sessionObj["persistent"] as? Bool ?? true,
+                maxSessionDurationSeconds: (sessionObj["maxSessionDurationMs"] as? Double).map { $0 / 1000.0 } ?? 4 * 60 * 60,
+                sessionTimeoutSeconds: (sessionObj["sessionTimeoutMs"] as? Double).map { $0 / 1000.0 } ?? 15 * 60,
+                samplingRate: sessionObj["samplingRate"] as? Double ?? 1.0
+            )
+        }
+
+        let loggerLevel: InternalLoggerLevel = {
+            switch obj["internalLoggerLevel"] as? String {
+            case "verbose": return .verbose
+            case "debug": return .debug
+            case "info": return .info
+            case "warn": return .warn
+            case "error": return .error
+            case "none": return .none
+            default: return .error
+            }
+        }()
+
+        let transportHeaders: [String: String] = (obj["transportHeaders"] as? [String: String]) ?? [:]
+
         return FaroConfig(
             collectorUrl: obj["collectorUrl"] as? String ?? "",
             app: app,
             apiKey: obj["apiKey"] as? String,
+            sessionTracking: sessionConfig,
             enableCrashReporting: obj["enableCrashReporting"] as? Bool ?? false,
             enableHangDetection: obj["enableHangDetection"] as? Bool ?? true,
             enableLifecycleTracking: obj["enableLifecycleTracking"] as? Bool ?? true,
             enableNetworkMonitoring: obj["enableNetworkMonitoring"] as? Bool ?? true,
-            eventDomain: obj["eventDomain"] as? String ?? "app"
+            batchConfig: batchConfig,
+            internalLoggerLevel: loggerLevel,
+            eventDomain: obj["eventDomain"] as? String ?? "app",
+            transportHeaders: transportHeaders
         )
     }
 
@@ -192,6 +245,19 @@ class FaroReactNativeModule: NSObject {
             fullName: obj["fullName"] as? String,
             roles: obj["roles"] as? String,
             hash: obj["hash"] as? String,
+            attributes: obj["attributes"] as? [String: String]
+        )
+    }
+
+    private func parsePage(_ jsonString: String) -> MetaPage? {
+        guard let data = jsonString.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+
+        return MetaPage(
+            id: obj["id"] as? String,
+            url: obj["url"] as? String,
             attributes: obj["attributes"] as? [String: String]
         )
     }
