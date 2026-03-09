@@ -57,14 +57,38 @@ function appendToLog(entry) {
   fs.appendFileSync(LOG_FILE, line);
 }
 
-function classifySignal(payload) {
-  // The native Faro SDKs send different signal types. Try to detect them.
-  if (payload.logs || payload.log) return 'log';
-  if (payload.exceptions || payload.exception || payload.error) return 'error';
-  if (payload.measurements || payload.measurement) return 'measurement';
-  if (payload.events || payload.event) return 'event';
-  if (payload.traces || payload.resourceSpans) return 'trace';
-  return 'unknown';
+/**
+ * Extract individual signal items from a batched payload.
+ * The native Faro SDKs send batched payloads containing multiple signal types
+ * (logs, exceptions, events, measurements) in a single POST. This function
+ * explodes them into individual items so they can be queried independently.
+ */
+function extractSignals(payload, meta) {
+  const items = [];
+  const shared = { meta: meta || payload.meta };
+
+  for (const log of (payload.logs || [])) {
+    items.push({ signalType: 'log', level: log.level, message: log.message, timestamp: log.timestamp, context: log.context, ...shared });
+  }
+  for (const exc of (payload.exceptions || [])) {
+    items.push({ signalType: 'error', type: exc.type, value: exc.value, stacktrace: exc.stacktrace, context: exc.context, ...shared });
+  }
+  for (const ev of (payload.events || [])) {
+    items.push({ signalType: 'event', name: ev.name, attributes: ev.attributes, domain: ev.domain, timestamp: ev.timestamp, ...shared });
+  }
+  for (const m of (payload.measurements || [])) {
+    items.push({ signalType: 'measurement', type: m.type, values: m.values, context: m.context, timestamp: m.timestamp, ...shared });
+  }
+  for (const t of (payload.traces || payload.resourceSpans || [])) {
+    items.push({ signalType: 'trace', data: t, ...shared });
+  }
+
+  // If nothing was extracted, store the raw payload
+  if (items.length === 0) {
+    items.push({ signalType: 'unknown', data: payload, ...shared });
+  }
+
+  return items;
 }
 
 function handlePost(req, res) {
@@ -78,30 +102,39 @@ function handlePost(req, res) {
       parsed = { rawBody: body };
     }
 
-    const entry = {
-      receivedAt: timestamp(),
-      method: req.method,
-      path: req.url,
-      headers: {
-        'content-type': req.headers['content-type'],
-        'user-agent': req.headers['user-agent'],
-        'x-api-key': req.headers['x-api-key'],
-      },
-      signalType: classifySignal(parsed),
-      payload: parsed,
+    const now = timestamp();
+    const headersMeta = {
+      'content-type': req.headers['content-type'],
+      'user-agent': req.headers['user-agent'],
+      'x-api-key': req.headers['x-api-key'],
     };
 
-    signals.push(entry);
+    const items = extractSignals(parsed, parsed.meta);
+    const typeCounts = {};
+
+    for (const item of items) {
+      const entry = {
+        receivedAt: now,
+        method: req.method,
+        path: req.url,
+        headers: headersMeta,
+        ...item,
+      };
+
+      signals.push(entry);
+      typeCounts[item.signalType] = (typeCounts[item.signalType] || 0) + 1;
+    }
+
     if (signals.length > MAX_SIGNALS_IN_MEMORY) {
       signals.splice(0, signals.length - MAX_SIGNALS_IN_MEMORY);
     }
 
-    appendToLog(entry);
+    // Log the raw batch to file for debugging
+    appendToLog({ receivedAt: now, method: req.method, path: req.url, headers: headersMeta, payload: parsed });
 
-    const count = signals.length;
+    const summary = Object.entries(typeCounts).map(([t, c]) => `${c} ${t}(s)`).join(', ');
     console.log(
-      `[${entry.receivedAt}] ${entry.signalType.toUpperCase()} received ` +
-      `(${req.url}) — ${count} total`
+      `[${now}] Batch received (${req.url}) — ${summary} — ${signals.length} total`
     );
 
     // Native SDKs expect 2xx
