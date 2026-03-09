@@ -28,14 +28,17 @@ export interface SessionConfig {
 export interface BatchConfig {
   itemLimit?: number;
   sendTimeoutMs?: number;
+  maxBufferSize?: number;
 }
 
-export type BeforeSendHook = (item: TransportItem) => TransportItem | null;
+export interface TransportConfig {
+  headers?: Record<string, string>;
+}
 
-export interface TransportItem {
-  type: string;
-  payload: unknown;
-  meta: Record<string, unknown>;
+export interface MetaPage {
+  id?: string;
+  url?: string;
+  attributes?: Record<string, string>;
 }
 
 export interface ReactNativeConfig {
@@ -45,6 +48,9 @@ export interface ReactNativeConfig {
 
   // Optional auth
   apiKey?: string;
+
+  // Transport
+  transport?: TransportConfig;
 
   // User
   user?: MetaUser;
@@ -64,10 +70,11 @@ export interface ReactNativeConfig {
   enableJSErrorTracking?: boolean;
   enableFetchInstrumentation?: boolean;
 
-  // Shared
-  beforeSend?: BeforeSendHook;
+  // Filtering (applied JS-side before signals cross the bridge)
   ignoreErrors?: Array<string | RegExp>;
   ignoreUrls?: Array<string | RegExp>;
+
+  // Batching
   batching?: BatchConfig;
 
   // Internal
@@ -87,6 +94,7 @@ export interface NativeConfig {
   enableLifecycleTracking: boolean;
   enableNetworkMonitoring: boolean;
   batchConfig?: BatchConfig;
+  transportHeaders?: Record<string, string>;
   internalLoggerLevel: string;
   eventDomain: string;
 }

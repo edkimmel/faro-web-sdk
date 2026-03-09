@@ -16,8 +16,8 @@ export type {
   MetaUser,
   SessionConfig,
   BatchConfig,
-  BeforeSendHook,
-  TransportItem,
+  TransportConfig,
+  MetaPage,
 } from './config/types';
 
 export { ConsoleInstrumentation } from './instrumentations/ConsoleInstrumentation';

@@ -17,6 +17,8 @@ export interface Spec extends TurboModule {
   resetUser(): void;
   setSession(session: string): void;
   setView(view: string): void;
+  setPage(page: string): void;
+  resetPage(): void;
 
   // Control
   pause(): void;

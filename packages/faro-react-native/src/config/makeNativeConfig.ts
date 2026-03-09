@@ -13,6 +13,7 @@ export function makeNativeConfig(config: ReactNativeConfig): NativeConfig {
     enableLifecycleTracking: config.enableLifecycleTracking ?? true,
     enableNetworkMonitoring: config.enableNativeNetworkMonitoring ?? true,
     batchConfig: config.batching,
+    transportHeaders: config.transport?.headers,
     internalLoggerLevel: config.internalLoggerLevel ?? 'error',
     eventDomain: config.eventDomain ?? 'app',
   };

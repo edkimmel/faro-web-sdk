@@ -28,6 +28,8 @@ RCT_EXTERN_METHOD(setUser:(NSString *)userJson)
 RCT_EXTERN_METHOD(resetUser)
 RCT_EXTERN_METHOD(setSession:(NSString *)sessionId)
 RCT_EXTERN_METHOD(setView:(NSString *)viewName)
+RCT_EXTERN_METHOD(setPage:(NSString *)pageJson)
+RCT_EXTERN_METHOD(resetPage)
 RCT_EXTERN_METHOD(pause)
 RCT_EXTERN_METHOD(unpause)
 
