@@ -45,12 +45,13 @@ internal class HttpTransport(
         val requestBuilder = Request.Builder()
             .url(collectorUrl)
             .post(jsonBody.toRequestBody(jsonMediaType))
-            .header("Content-Type", "application/json")
 
         // Apply custom headers first so built-in headers take precedence
         for ((key, value) in customHeaders) {
             requestBuilder.header(key, value)
         }
+
+        requestBuilder.header("Content-Type", "application/json")
 
         apiKey?.let {
             requestBuilder.header("x-api-key", it)

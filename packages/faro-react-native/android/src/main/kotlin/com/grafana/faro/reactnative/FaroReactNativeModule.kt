@@ -135,7 +135,12 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
     fun setPage(pageJson: String) {
         val instance = ensureInstance("setPage") ?: return
         Log.d(TAG, "setPage()")
-        val page = parsePage(pageJson)
+        val page = try {
+            parsePage(pageJson)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse page JSON", e)
+            return
+        }
         instance.setPage(page)
     }
 
