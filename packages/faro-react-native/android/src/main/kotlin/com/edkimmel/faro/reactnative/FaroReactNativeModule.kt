@@ -210,7 +210,7 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
             sessionTracking = obj["sessionTracking"]?.jsonObject?.let { parseSessionConfig(it) }
                 ?: SessionConfig(),
             enableCrashReporting = obj["enableCrashReporting"]?.jsonPrimitive?.boolean ?: false,
-            enableAnrDetection = obj["enableAnrDetection"]?.jsonPrimitive?.boolean ?: true,
+            enableHangDetection = obj["enableHangDetection"]?.jsonPrimitive?.boolean ?: true,
             enableLifecycleTracking = obj["enableLifecycleTracking"]?.jsonPrimitive?.boolean ?: true,
             enableNetworkMonitoring = obj["enableNetworkMonitoring"]?.jsonPrimitive?.boolean ?: true,
             batchConfig = obj["batchConfig"]?.jsonObject?.let { parseBatchConfig(it) }

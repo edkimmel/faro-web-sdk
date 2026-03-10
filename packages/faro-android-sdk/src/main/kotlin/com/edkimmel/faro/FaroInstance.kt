@@ -94,7 +94,7 @@ class FaroInstance internal constructor(
             installInstrumentation(CrashInstrumentation())
         }
 
-        if (config.enableAnrDetection) {
+        if (config.enableHangDetection) {
             installInstrumentation(AnrInstrumentation())
         }
 

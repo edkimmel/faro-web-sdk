@@ -60,7 +60,6 @@ export interface ReactNativeConfig {
 
   // Native features (opt-in)
   enableCrashReporting?: boolean;
-  enableAnrDetection?: boolean;
   enableHangDetection?: boolean;
   enableLifecycleTracking?: boolean;
   enableNativeNetworkMonitoring?: boolean;
@@ -89,7 +88,6 @@ export interface NativeConfig {
   user?: MetaUser;
   sessionTracking?: SessionConfig;
   enableCrashReporting: boolean;
-  enableAnrDetection: boolean;
   enableHangDetection: boolean;
   enableLifecycleTracking: boolean;
   enableNetworkMonitoring: boolean;

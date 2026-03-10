@@ -8,7 +8,6 @@ export function makeNativeConfig(config: ReactNativeConfig): NativeConfig {
     user: config.user,
     sessionTracking: config.sessionTracking,
     enableCrashReporting: config.enableCrashReporting ?? false,
-    enableAnrDetection: config.enableAnrDetection ?? true,
     enableHangDetection: config.enableHangDetection ?? true,
     enableLifecycleTracking: config.enableLifecycleTracking ?? true,
     enableNetworkMonitoring: config.enableNativeNetworkMonitoring ?? true,

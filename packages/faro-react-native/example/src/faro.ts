@@ -27,7 +27,7 @@ export function getInitPromise(): Promise<FaroReactNative> {
         environment: __DEV__ ? 'development' : 'production',
       },
       enableCrashReporting: true,
-      enableAnrDetection: true,
+      enableHangDetection: true,
       enableConsoleInstrumentation: true,
       enableJSErrorTracking: true,
       enableFetchInstrumentation: true,

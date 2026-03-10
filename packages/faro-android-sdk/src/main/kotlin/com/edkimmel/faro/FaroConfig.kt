@@ -16,7 +16,7 @@ data class FaroConfig(
     val user: MetaUser? = null,
     val sessionTracking: SessionConfig = SessionConfig(),
     val enableCrashReporting: Boolean = false,
-    val enableAnrDetection: Boolean = true,
+    val enableHangDetection: Boolean = true,
     val enableLifecycleTracking: Boolean = true,
     val enableNetworkMonitoring: Boolean = true,
     val batchConfig: BatchConfig = BatchConfig(),
