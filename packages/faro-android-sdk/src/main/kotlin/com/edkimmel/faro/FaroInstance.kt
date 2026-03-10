@@ -238,6 +238,30 @@ class FaroInstance internal constructor(
 
     // ---- Internal ----
 
+    /** Replay a pre-init buffered log with its original timestamp preserved. */
+    internal fun replayLog(message: String, level: LogLevel, context: Map<String, String>?, timestamp: String) {
+        val event = LogEvent(message = message, level = level, timestamp = timestamp, context = context)
+        enqueue(TransportItemType.LOG, event)
+    }
+
+    /** Replay a pre-init buffered error with its original timestamp preserved. */
+    internal fun replayError(type: String, value: String, stacktrace: Stacktrace?, context: Map<String, String>?, timestamp: String) {
+        val event = ExceptionEvent(type = type, value = value, timestamp = timestamp, stacktrace = stacktrace, context = context)
+        enqueue(TransportItemType.EXCEPTION, event)
+    }
+
+    /** Replay a pre-init buffered measurement with its original timestamp preserved. */
+    internal fun replayMeasurement(type: String, values: Map<String, Double>, context: Map<String, String>?, timestamp: String) {
+        val event = MeasurementEvent(type = type, values = values, timestamp = timestamp, context = context)
+        enqueue(TransportItemType.MEASUREMENT, event)
+    }
+
+    /** Replay a pre-init buffered event with its original timestamp preserved. */
+    internal fun replayEvent(name: String, attributes: Map<String, String>?, domain: String?, timestamp: String) {
+        val event = EventEvent(name = name, timestamp = timestamp, domain = domain ?: config.eventDomain, attributes = attributes)
+        enqueue(TransportItemType.EVENT, event)
+    }
+
     internal fun writeCrashToDisk(exception: ExceptionEvent) {
         val body = TransportBody(
             meta = buildMeta(),

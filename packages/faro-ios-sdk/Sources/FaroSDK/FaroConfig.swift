@@ -23,6 +23,10 @@ public struct FaroConfig {
     /// Set to true when running inside an app extension (widget, notification service, etc.)
     /// where UIApplication is unavailable.
     public let isRunFromExtension: Bool
+    /// Configuration for the pre-initialization buffer. When nil, defaults are used.
+    /// The pre-init buffer captures signals sent before initialize() and replays them
+    /// when the SDK starts.
+    public let preInitBufferConfig: PreInitBufferConfig?
 
     public init(
         collectorUrl: String,
@@ -42,7 +46,8 @@ public struct FaroConfig {
         ignoreUrls: [NSRegularExpression] = [],
         eventDomain: String = "app",
         backgroundTasksEnabled: Bool = true,
-        isRunFromExtension: Bool = false
+        isRunFromExtension: Bool = false,
+        preInitBufferConfig: PreInitBufferConfig? = nil
     ) {
         self.collectorUrl = collectorUrl
         self.app = app
@@ -62,5 +67,6 @@ public struct FaroConfig {
         self.eventDomain = eventDomain
         self.backgroundTasksEnabled = backgroundTasksEnabled
         self.isRunFromExtension = isRunFromExtension
+        self.preInitBufferConfig = preInitBufferConfig
     }
 }

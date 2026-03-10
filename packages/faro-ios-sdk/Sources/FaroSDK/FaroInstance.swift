@@ -259,6 +259,30 @@ public final class FaroInstance {
 
     // MARK: - Internal
 
+    /// Replay a pre-init buffered log with its original timestamp preserved.
+    internal func replayLog(_ message: String, level: LogLevel, context: [String: String]?, timestamp: String) {
+        let event = LogEvent(message: message, level: level, timestamp: timestamp, context: context)
+        enqueue(type: .log, payload: event)
+    }
+
+    /// Replay a pre-init buffered error with its original timestamp preserved.
+    internal func replayError(type: String, value: String, stacktrace: Stacktrace?, context: [String: String]?, timestamp: String) {
+        let event = ExceptionEvent(type: type, value: value, timestamp: timestamp, stacktrace: stacktrace, context: context)
+        enqueue(type: .exception, payload: event)
+    }
+
+    /// Replay a pre-init buffered measurement with its original timestamp preserved.
+    internal func replayMeasurement(type: String, values: [String: Double], context: [String: String]?, timestamp: String) {
+        let event = MeasurementEvent(type: type, values: values, timestamp: timestamp, context: context)
+        enqueue(type: .measurement, payload: event)
+    }
+
+    /// Replay a pre-init buffered event with its original timestamp preserved.
+    internal func replayEvent(_ name: String, attributes: [String: String]?, domain: String?, timestamp: String) {
+        let event = EventEvent(name: name, timestamp: timestamp, domain: domain ?? config.eventDomain, attributes: attributes)
+        enqueue(type: .event, payload: event)
+    }
+
     internal func writeCrashToDisk(_ exception: ExceptionEvent) {
         let body = TransportBody(
             meta: buildMeta(),
