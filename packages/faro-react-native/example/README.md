@@ -1,6 +1,6 @@
 # Faro React Native Example App
 
-An Expo-based example app for verifying the `@grafana/faro-react-native` SDK end to end. The app exercises every SDK feature — logs, errors, events, measurements, user metadata, sessions, and network monitoring — and ships with a local mock collector so you can verify signals without a remote backend.
+An Expo-based example app for verifying the `@edkimmel/faro-react-native` SDK end to end. The app exercises every SDK feature — logs, errors, events, measurements, user metadata, sessions, and network monitoring — and ships with a local mock collector so you can verify signals without a remote backend.
 
 ## Prerequisites
 

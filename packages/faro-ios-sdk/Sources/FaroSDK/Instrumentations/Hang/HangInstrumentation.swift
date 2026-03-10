@@ -25,7 +25,7 @@ public final class HangInstrumentation: Instrumentation {
         let thread = Thread { [weak self] in
             self?.watchdogLoop()
         }
-        thread.name = "com.grafana.faro.hang-detector"
+        thread.name = "com.edkimmel.faro.hang-detector"
         thread.qualityOfService = .userInteractive
         thread.start()
         watchdogThread = thread

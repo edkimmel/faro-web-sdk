@@ -10,7 +10,7 @@ import {
 
 import { getFaro } from '../src/faro';
 import { StatusBanner } from '../src/StatusBanner';
-import type { LogLevel } from '@grafana/faro-react-native';
+import type { LogLevel } from '@edkimmel/faro-react-native';
 
 const LOG_LEVELS: LogLevel[] = ['trace', 'debug', 'info', 'log', 'warn', 'error'];
 

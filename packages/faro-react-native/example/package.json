@@ -10,7 +10,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@grafana/faro-react-native": "link:..",
+    "@edkimmel/faro-react-native": "link:..",
     "expo": "~55.0.5",
     "expo-linking": "~55.0.4",
     "expo-router": "~55.0.4",

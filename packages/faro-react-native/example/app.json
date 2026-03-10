@@ -8,13 +8,13 @@
     "platforms": ["ios", "android"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.grafana.faro.reactnative.example"
+      "bundleIdentifier": "com.edkimmel.faro.reactnative.example"
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#F46800"
       },
-      "package": "com.grafana.faro.reactnative.example"
+      "package": "com.edkimmel.faro.reactnative.example"
     },
     "plugins": ["expo-router"]
   }

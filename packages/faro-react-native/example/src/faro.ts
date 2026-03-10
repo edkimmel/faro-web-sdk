@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
-import { initializeFaro, getFaro } from '@grafana/faro-react-native';
-import type { FaroReactNative } from '@grafana/faro-react-native';
+import { initializeFaro, getFaro } from '@edkimmel/faro-react-native';
+import type { FaroReactNative } from '@edkimmel/faro-react-native';
 
 // ---------- Collector URL ----------
 // For the mock collector (tools/mock-collector.mjs), use:

@@ -1,7 +1,7 @@
 {
-  "name": "@grafana/faro-react-native",
+  "name": "@edkimmel/faro-react-native",
   "version": "1.0.0",
-  "description": "Grafana Faro SDK for React Native - bridges JavaScript with native Android/iOS Faro SDKs",
+  "description": "Faro SDK for React Native - bridges JavaScript with native Android/iOS Faro SDKs",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
   "types": "lib/typescript/index.d.ts",
@@ -13,7 +13,7 @@
   },
   "keywords": [
     "react-native",
-    "grafana",
+    "edkimmel",
     "faro",
     "observability",
     "monitoring",

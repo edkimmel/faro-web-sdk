@@ -17,7 +17,7 @@ internal final class BatchExecutor {
     private let logger: InternalLogger
     private let onFlush: ([TransportItem]) -> Void
     private var buffer: [TransportItem] = []
-    private let queue = DispatchQueue(label: "com.grafana.faro.batch", attributes: .concurrent)
+    private let queue = DispatchQueue(label: "com.edkimmel.faro.batch", attributes: .concurrent)
     private var flushTimer: DispatchWorkItem?
     private var _isPaused: Bool = false
     var isPaused: Bool {

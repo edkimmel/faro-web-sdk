@@ -9,14 +9,15 @@ public final class FaroInstance {
     private let diskBuffer: DiskBuffer
     private let httpTransport: HttpTransport
     private let diskBufferTransport: DiskBufferTransport
-    private var batchExecutor: BatchExecutor!
-    private let instrumentationsQueue = DispatchQueue(label: "com.grafana.faro.instance.instrumentations")
+    private let backgroundTaskCoordinator: BackgroundTaskCoordinator?
+    private let batchExecutor: BatchExecutor
+    private let instrumentationsQueue = DispatchQueue(label: "com.edkimmel.faro.instance.instrumentations")
     private var _instrumentations: [Instrumentation] = []
     private var instrumentations: [Instrumentation] {
         get { instrumentationsQueue.sync { _instrumentations } }
     }
 
-    private let stateQueue = DispatchQueue(label: "com.grafana.faro.instance.state")
+    private let stateQueue = DispatchQueue(label: "com.edkimmel.faro.instance.state")
     private var _isPaused = false
     private var _currentUser: MetaUser?
     private var _currentView: MetaView?
@@ -61,10 +62,26 @@ public final class FaroInstance {
             logger: logger
         )
 
+        // Create background task coordinator based on config
+        if config.backgroundTasksEnabled {
+            #if canImport(UIKit) && !os(watchOS)
+            if config.isRunFromExtension {
+                backgroundTaskCoordinator = ExtensionBackgroundTaskCoordinator()
+            } else {
+                backgroundTaskCoordinator = AppBackgroundTaskCoordinator()
+            }
+            #else
+            backgroundTaskCoordinator = ExtensionBackgroundTaskCoordinator()
+            #endif
+        } else {
+            backgroundTaskCoordinator = nil
+        }
+
         diskBufferTransport = DiskBufferTransport(
             diskBuffer: diskBuffer,
             httpTransport: httpTransport,
-            logger: logger
+            logger: logger,
+            backgroundTaskCoordinator: backgroundTaskCoordinator
         )
 
         batchExecutor = BatchExecutor(
@@ -239,6 +256,13 @@ public final class FaroInstance {
         batchExecutor.flush()
     }
 
+    /// Best-effort synchronous flush of all pending data with background task protection.
+    /// Use during app termination to maximize data delivery before the process exits.
+    public func flushSynchronously() {
+        batchExecutor.shutdown()
+        diskBufferTransport.flushSynchronously()
+    }
+
     public func shutdown() {
         let currentInstrumentations = instrumentations
         currentInstrumentations.forEach { $0.uninstall() }
@@ -248,6 +272,30 @@ public final class FaroInstance {
     }
 
     // MARK: - Internal
+
+    /// Replay a pre-init buffered log with its original timestamp preserved.
+    internal func replayLog(_ message: String, level: LogLevel, context: [String: String]?, timestamp: String) {
+        let event = LogEvent(message: message, level: level, timestamp: timestamp, context: context)
+        enqueue(type: .log, payload: event)
+    }
+
+    /// Replay a pre-init buffered error with its original timestamp preserved.
+    internal func replayError(type: String, value: String, stacktrace: Stacktrace?, context: [String: String]?, timestamp: String) {
+        let event = ExceptionEvent(type: type, value: value, timestamp: timestamp, stacktrace: stacktrace, context: context)
+        enqueue(type: .exception, payload: event)
+    }
+
+    /// Replay a pre-init buffered measurement with its original timestamp preserved.
+    internal func replayMeasurement(type: String, values: [String: Double], context: [String: String]?, timestamp: String) {
+        let event = MeasurementEvent(type: type, values: values, timestamp: timestamp, context: context)
+        enqueue(type: .measurement, payload: event)
+    }
+
+    /// Replay a pre-init buffered event with its original timestamp preserved.
+    internal func replayEvent(_ name: String, attributes: [String: String]?, domain: String?, timestamp: String) {
+        let event = EventEvent(name: name, timestamp: timestamp, domain: domain ?? config.eventDomain, attributes: attributes)
+        enqueue(type: .event, payload: event)
+    }
 
     internal func writeCrashToDisk(_ exception: ExceptionEvent) {
         let body = TransportBody(

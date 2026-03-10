@@ -18,6 +18,16 @@ public struct FaroConfig {
     public let ignoreUrls: [NSRegularExpression]
     public let eventDomain: String
     public let transportHeaders: [String: String]
+    /// Whether to use beginBackgroundTask to protect uploads from suspension.
+    /// When true, the SDK requests additional background execution time (~30s) during uploads.
+    public let backgroundTasksEnabled: Bool
+    /// Set to true when running inside an app extension (widget, notification service, etc.)
+    /// where UIApplication is unavailable.
+    public let isRunFromExtension: Bool
+    /// Configuration for the pre-initialization buffer. When nil, defaults are used.
+    /// The pre-init buffer captures signals sent before initialize() and replays them
+    /// when the SDK starts.
+    public let preInitBufferConfig: PreInitBufferConfig?
 
     public init(
         collectorUrl: String,
@@ -36,7 +46,10 @@ public struct FaroConfig {
         ignoreErrors: [NSRegularExpression] = [],
         ignoreUrls: [NSRegularExpression] = [],
         eventDomain: String = "app",
-        transportHeaders: [String: String] = [:]
+        transportHeaders: [String: String] = [:],
+        backgroundTasksEnabled: Bool = true,
+        isRunFromExtension: Bool = false,
+        preInitBufferConfig: PreInitBufferConfig? = nil
     ) {
         self.collectorUrl = collectorUrl
         self.app = app
@@ -55,5 +68,8 @@ public struct FaroConfig {
         self.ignoreUrls = ignoreUrls
         self.eventDomain = eventDomain
         self.transportHeaders = transportHeaders
+        self.backgroundTasksEnabled = backgroundTasksEnabled
+        self.isRunFromExtension = isRunFromExtension
+        self.preInitBufferConfig = preInitBufferConfig
     }
 }

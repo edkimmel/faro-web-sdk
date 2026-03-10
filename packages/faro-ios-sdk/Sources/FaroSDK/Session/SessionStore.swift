@@ -10,9 +10,9 @@ internal final class SessionStore {
     private let defaults: UserDefaults
 
     private enum Keys {
-        static let sessionId = "com.grafana.faro.session.id"
-        static let startTime = "com.grafana.faro.session.startTime"
-        static let isSampled = "com.grafana.faro.session.isSampled"
+        static let sessionId = "com.edkimmel.faro.session.id"
+        static let startTime = "com.edkimmel.faro.session.startTime"
+        static let isSampled = "com.edkimmel.faro.session.isSampled"
     }
 
     init(suiteName: String? = nil) {

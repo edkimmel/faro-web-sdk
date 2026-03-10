@@ -5,8 +5,13 @@ import FaroSDK
 
 @objc(FaroReactNative)
 class FaroReactNativeModule: NSObject {
-    private var faroInstance: FaroInstance?
-    private let logger = OSLog(subsystem: "com.grafana.faro.reactnative", category: "Bridge")
+    private let instanceQueue = DispatchQueue(label: "com.edkimmel.faro.reactnative.instance")
+    private var _faroInstance: FaroInstance?
+    private var faroInstance: FaroInstance? {
+        get { instanceQueue.sync { _faroInstance } }
+        set { instanceQueue.sync { _faroInstance = newValue } }
+    }
+    private let logger = OSLog(subsystem: "com.edkimmel.faro.reactnative", category: "Bridge")
 
     @objc
     func initialize(_ configJson: String, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {
@@ -16,14 +21,8 @@ class FaroReactNativeModule: NSObject {
             do {
                 let config = try self.parseConfig(configJson)
                 os_log(.info, log: self.logger, "Config parsed — collectorUrl=%{public}@", config.collectorUrl)
-
-                if Faro.shared.isInitialized {
-                    self.faroInstance = Faro.shared.getInstance()
-                    os_log(.info, log: self.logger, "Reusing existing native SDK instance")
-                } else {
-                    self.faroInstance = try Faro.shared.initialize(config: config)
-                    os_log(.info, log: self.logger, "Native SDK initialized successfully")
-                }
+                self.faroInstance = try Faro.shared.initialize(config: config)
+                os_log(.info, log: self.logger, "Native SDK initialized successfully")
                 resolve(nil)
             } catch {
                 os_log(.error, log: self.logger, "initialize() failed: %{public}@", error.localizedDescription)
@@ -182,37 +181,33 @@ class FaroReactNativeModule: NSObject {
             bundleId: appObj["bundleId"] as? String
         )
 
-        var batchConfig = BatchConfig()
-        if let batchObj = obj["batchConfig"] as? [String: Any] {
-            batchConfig = BatchConfig(
-                itemLimit: batchObj["itemLimit"] as? Int ?? 30,
-                sendTimeoutMs: batchObj["sendTimeoutMs"] as? Int ?? 5000,
-                maxBufferSize: batchObj["maxBufferSize"] as? Int ?? 1000
-            )
-        }
+        let user: MetaUser? = (obj["user"] as? [String: Any]).flatMap { parseUserDict($0) }
 
-        var sessionConfig = SessionConfig()
+        let sessionConfig: SessionConfig
         if let sessionObj = obj["sessionTracking"] as? [String: Any] {
+            // JS sends milliseconds, iOS SessionConfig uses seconds
+            let maxDurationMs = sessionObj["maxSessionDurationMs"] as? Double ?? (4 * 60 * 60 * 1000)
+            let timeoutMs = sessionObj["sessionTimeoutMs"] as? Double ?? (15 * 60 * 1000)
             sessionConfig = SessionConfig(
                 enabled: sessionObj["enabled"] as? Bool ?? true,
                 persistent: sessionObj["persistent"] as? Bool ?? true,
-                maxSessionDurationSeconds: (sessionObj["maxSessionDurationMs"] as? Double).map { $0 / 1000.0 } ?? 4 * 60 * 60,
-                sessionTimeoutSeconds: (sessionObj["sessionTimeoutMs"] as? Double).map { $0 / 1000.0 } ?? 15 * 60,
+                maxSessionDurationSeconds: maxDurationMs / 1000.0,
+                sessionTimeoutSeconds: timeoutMs / 1000.0,
                 samplingRate: sessionObj["samplingRate"] as? Double ?? 1.0
             )
+        } else {
+            sessionConfig = SessionConfig()
         }
 
-        let loggerLevel: InternalLoggerLevel = {
-            switch obj["internalLoggerLevel"] as? String {
-            case "verbose": return .verbose
-            case "debug": return .debug
-            case "info": return .info
-            case "warn": return .warn
-            case "error": return .error
-            case "none": return .none
-            default: return .error
-            }
-        }()
+        let batchConfig: BatchConfig
+        if let batchObj = obj["batchConfig"] as? [String: Any] {
+            batchConfig = BatchConfig(
+                itemLimit: batchObj["itemLimit"] as? Int ?? 30,
+                sendTimeoutMs: batchObj["sendTimeoutMs"] as? Int ?? 5000
+            )
+        } else {
+            batchConfig = BatchConfig()
+        }
 
         let transportHeaders: [String: String] = (obj["transportHeaders"] as? [String: String]) ?? [:]
 
@@ -220,16 +215,41 @@ class FaroReactNativeModule: NSObject {
             collectorUrl: obj["collectorUrl"] as? String ?? "",
             app: app,
             apiKey: obj["apiKey"] as? String,
+            user: user,
             sessionTracking: sessionConfig,
             enableCrashReporting: obj["enableCrashReporting"] as? Bool ?? false,
             enableHangDetection: obj["enableHangDetection"] as? Bool ?? true,
             enableLifecycleTracking: obj["enableLifecycleTracking"] as? Bool ?? true,
             enableNetworkMonitoring: obj["enableNetworkMonitoring"] as? Bool ?? true,
             batchConfig: batchConfig,
-            internalLoggerLevel: loggerLevel,
+            internalLoggerLevel: parseLoggerLevel(obj["internalLoggerLevel"] as? String),
             eventDomain: obj["eventDomain"] as? String ?? "app",
             transportHeaders: transportHeaders
         )
+    }
+
+    private func parseUserDict(_ obj: [String: Any]) -> MetaUser? {
+        return MetaUser(
+            email: obj["email"] as? String,
+            id: obj["id"] as? String,
+            username: obj["username"] as? String,
+            fullName: obj["fullName"] as? String,
+            roles: obj["roles"] as? String,
+            hash: obj["hash"] as? String,
+            attributes: obj["attributes"] as? [String: String]
+        )
+    }
+
+    private func parseLoggerLevel(_ level: String?) -> InternalLoggerLevel {
+        switch level?.lowercased() {
+        case "verbose": return .verbose
+        case "debug": return .debug
+        case "info": return .info
+        case "warn": return .warn
+        case "error": return .error
+        case "none": return .none
+        default: return .error
+        }
     }
 
     private func parseUser(_ jsonString: String) -> MetaUser? {
