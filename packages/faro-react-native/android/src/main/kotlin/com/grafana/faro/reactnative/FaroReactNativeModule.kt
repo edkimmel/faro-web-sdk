@@ -8,6 +8,9 @@ import com.grafana.faro.Faro
 import com.grafana.faro.FaroConfig
 import com.grafana.faro.FaroInstance
 import com.grafana.faro.api.models.*
+import com.grafana.faro.internal.InternalLoggerLevel
+import com.grafana.faro.session.SessionConfig
+import com.grafana.faro.transport.BatchConfig
 import kotlinx.serialization.json.*
 
 class FaroReactNativeModule(reactContext: ReactApplicationContext) :
@@ -180,11 +183,64 @@ class FaroReactNativeModule(reactContext: ReactApplicationContext) :
             collectorUrl = obj["collectorUrl"]?.jsonPrimitive?.content ?: "",
             apiKey = obj["apiKey"]?.jsonPrimitive?.contentOrNull,
             app = parseApp(obj["app"]?.jsonObject),
+            user = obj["user"]?.jsonObject?.let { parseUserObj(it) },
+            sessionTracking = obj["sessionTracking"]?.jsonObject?.let { parseSessionConfig(it) }
+                ?: SessionConfig(),
             enableCrashReporting = obj["enableCrashReporting"]?.jsonPrimitive?.boolean ?: false,
             enableAnrDetection = obj["enableAnrDetection"]?.jsonPrimitive?.boolean ?: true,
             enableLifecycleTracking = obj["enableLifecycleTracking"]?.jsonPrimitive?.boolean ?: true,
             enableNetworkMonitoring = obj["enableNetworkMonitoring"]?.jsonPrimitive?.boolean ?: true,
+            batchConfig = obj["batchConfig"]?.jsonObject?.let { parseBatchConfig(it) }
+                ?: BatchConfig(),
+            internalLoggerLevel = parseLoggerLevel(
+                obj["internalLoggerLevel"]?.jsonPrimitive?.contentOrNull
+            ),
             eventDomain = obj["eventDomain"]?.jsonPrimitive?.contentOrNull ?: "app"
+        )
+    }
+
+    private fun parseSessionConfig(obj: JsonObject): SessionConfig {
+        return SessionConfig(
+            enabled = obj["enabled"]?.jsonPrimitive?.boolean ?: true,
+            persistent = obj["persistent"]?.jsonPrimitive?.boolean ?: true,
+            maxSessionDurationMs = obj["maxSessionDurationMs"]?.jsonPrimitive?.long
+                ?: (4 * 60 * 60 * 1000L),
+            sessionTimeoutMs = obj["sessionTimeoutMs"]?.jsonPrimitive?.long
+                ?: (15 * 60 * 1000L),
+            samplingRate = obj["samplingRate"]?.jsonPrimitive?.double ?: 1.0
+        )
+    }
+
+    private fun parseBatchConfig(obj: JsonObject): BatchConfig {
+        return BatchConfig(
+            itemLimit = obj["itemLimit"]?.jsonPrimitive?.int ?: 30,
+            sendTimeoutMs = obj["sendTimeoutMs"]?.jsonPrimitive?.long ?: 5000L
+        )
+    }
+
+    private fun parseLoggerLevel(level: String?): InternalLoggerLevel {
+        return when (level?.lowercase()) {
+            "verbose" -> InternalLoggerLevel.VERBOSE
+            "debug" -> InternalLoggerLevel.DEBUG
+            "info" -> InternalLoggerLevel.INFO
+            "warn" -> InternalLoggerLevel.WARN
+            "error" -> InternalLoggerLevel.ERROR
+            "none" -> InternalLoggerLevel.NONE
+            else -> InternalLoggerLevel.ERROR
+        }
+    }
+
+    private fun parseUserObj(obj: JsonObject): MetaUser {
+        return MetaUser(
+            email = obj["email"]?.jsonPrimitive?.contentOrNull,
+            id = obj["id"]?.jsonPrimitive?.contentOrNull,
+            username = obj["username"]?.jsonPrimitive?.contentOrNull,
+            fullName = obj["fullName"]?.jsonPrimitive?.contentOrNull,
+            roles = obj["roles"]?.jsonPrimitive?.contentOrNull,
+            hash = obj["hash"]?.jsonPrimitive?.contentOrNull,
+            attributes = obj["attributes"]?.jsonObject?.let { attrs ->
+                attrs.entries.associate { it.key to it.value.jsonPrimitive.content }
+            }
         )
     }
 
