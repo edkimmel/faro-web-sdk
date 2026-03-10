@@ -47,7 +47,7 @@ public final class AppLifecycleInstrumentation: Instrumentation {
             queue: .main
         ) { [weak self] _ in
             self?.faro?.pushEvent("app_terminate", domain: "app")
-            self?.faro?.flush()
+            self?.faro?.flushSynchronously()
         }
         observers.append(terminateObserver)
     }

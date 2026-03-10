@@ -61,7 +61,8 @@ class FaroInstance internal constructor(
         diskBufferTransport = DiskBufferTransport(
             diskBuffer = diskBuffer,
             httpTransport = httpTransport,
-            logger = logger
+            logger = logger,
+            appContext = application.applicationContext
         )
 
         batchExecutor = BatchExecutor(

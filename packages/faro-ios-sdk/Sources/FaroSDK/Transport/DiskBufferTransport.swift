@@ -7,6 +7,7 @@ internal final class DiskBufferTransport: Transport {
     private let httpTransport: HttpTransport
     private let logger: InternalLogger
     private let retryInterval: TimeInterval
+    private let backgroundTaskCoordinator: BackgroundTaskCoordinator?
     private var retryTimer: DispatchSourceTimer?
     private let queue = DispatchQueue(label: "com.edkimmel.faro.diskbuffer-transport")
 
@@ -14,12 +15,14 @@ internal final class DiskBufferTransport: Transport {
         diskBuffer: DiskBuffer,
         httpTransport: HttpTransport,
         logger: InternalLogger,
-        retryInterval: TimeInterval = 30.0
+        retryInterval: TimeInterval = 30.0,
+        backgroundTaskCoordinator: BackgroundTaskCoordinator? = nil
     ) {
         self.diskBuffer = diskBuffer
         self.httpTransport = httpTransport
         self.logger = logger
         self.retryInterval = retryInterval
+        self.backgroundTaskCoordinator = backgroundTaskCoordinator
     }
 
     func start() {
@@ -48,8 +51,21 @@ internal final class DiskBufferTransport: Transport {
     private func sendPendingCrashes() {
         queue.async { [weak self] in
             guard let self = self else { return }
+
             let crashes = self.diskBuffer.readPendingCrashes()
+            guard !crashes.isEmpty else { return }
+
+            self.backgroundTaskCoordinator?.beginBackgroundTask()
+            defer { self.backgroundTaskCoordinator?.endBackgroundTask() }
+
             for crash in crashes {
+                // Check upload conditions before each network attempt
+                let blockers = UploadConditions.currentBlockers()
+                if !blockers.isEmpty {
+                    self.logger.debug("Upload blocked: \(blockers.map { $0.rawValue }.joined(separator: ", "))")
+                    break
+                }
+
                 do {
                     try self.httpTransport.send(body: crash.body)
                     self.diskBuffer.deleteFile(crash)
@@ -64,12 +80,40 @@ internal final class DiskBufferTransport: Transport {
 
     private func sendPendingSignals() {
         let signals = diskBuffer.readPendingSignals()
+        guard !signals.isEmpty else { return }
+
+        backgroundTaskCoordinator?.beginBackgroundTask()
+        defer { backgroundTaskCoordinator?.endBackgroundTask() }
+
         for signal in signals {
+            let blockers = UploadConditions.currentBlockers()
+            if !blockers.isEmpty {
+                logger.debug("Upload blocked: \(blockers.map { $0.rawValue }.joined(separator: ", "))")
+                break
+            }
+
             do {
                 try httpTransport.send(body: signal.body)
                 diskBuffer.deleteFile(signal)
             } catch {
                 logger.debug("Failed to send signal, will retry later")
+                break
+            }
+        }
+    }
+
+    /// Synchronously flushes all pending data with background task protection.
+    /// Used during app termination for best-effort delivery.
+    func flushSynchronously() {
+        backgroundTaskCoordinator?.beginBackgroundTask()
+        defer { backgroundTaskCoordinator?.endBackgroundTask() }
+
+        let signals = diskBuffer.readPendingSignals()
+        for signal in signals {
+            do {
+                try httpTransport.send(body: signal.body)
+                diskBuffer.deleteFile(signal)
+            } catch {
                 break
             }
         }

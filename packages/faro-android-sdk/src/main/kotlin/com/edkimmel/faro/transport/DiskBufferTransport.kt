@@ -1,5 +1,6 @@
 package com.edkimmel.faro.transport
 
+import android.content.Context
 import com.edkimmel.faro.internal.InternalLogger
 import com.edkimmel.faro.persistence.DiskBuffer
 import kotlinx.coroutines.*
@@ -14,7 +15,8 @@ internal class DiskBufferTransport(
     private val diskBuffer: DiskBuffer,
     private val httpTransport: HttpTransport,
     private val logger: InternalLogger,
-    private val retryIntervalMs: Long = 30_000L
+    private val retryIntervalMs: Long = 30_000L,
+    private val appContext: Context? = null
 ) : Transport {
     override val name = "faro-android:transport-disk-buffer"
 
@@ -55,6 +57,10 @@ internal class DiskBufferTransport(
         sendMutex.withLock {
             val crashes = diskBuffer.readPendingCrashes()
             for (crash in crashes) {
+                if (!isSystemReady()) {
+                    logger.debug("Upload blocked by system conditions, will retry later")
+                    break
+                }
                 try {
                     httpTransport.send(crash.body)
                     diskBuffer.deleteFile(crash)
@@ -71,6 +77,10 @@ internal class DiskBufferTransport(
         sendMutex.withLock {
             val signals = diskBuffer.readPendingSignals()
             for (signal in signals) {
+                if (!isSystemReady()) {
+                    logger.debug("Upload blocked by system conditions, will retry later")
+                    break
+                }
                 try {
                     httpTransport.send(signal.body)
                     diskBuffer.deleteFile(signal)
@@ -80,6 +90,16 @@ internal class DiskBufferTransport(
                 }
             }
         }
+    }
+
+    private fun isSystemReady(): Boolean {
+        val ctx = appContext ?: return true
+        val blockers = UploadConditions.currentBlockers(ctx)
+        if (blockers.isNotEmpty()) {
+            logger.debug("Upload blockers: ${blockers.joinToString { it.reason }}")
+            return false
+        }
+        return true
     }
 
     private fun startRetryLoop() {

@@ -9,6 +9,7 @@ public final class FaroInstance {
     private let diskBuffer: DiskBuffer
     private let httpTransport: HttpTransport
     private let diskBufferTransport: DiskBufferTransport
+    private let backgroundTaskCoordinator: BackgroundTaskCoordinator?
     private let batchExecutor: BatchExecutor
     private let instrumentationsQueue = DispatchQueue(label: "com.edkimmel.faro.instance.instrumentations")
     private var _instrumentations: [Instrumentation] = []
@@ -55,10 +56,26 @@ public final class FaroInstance {
             logger: logger
         )
 
+        // Create background task coordinator based on config
+        if config.backgroundTasksEnabled {
+            #if canImport(UIKit) && !os(watchOS)
+            if config.isRunFromExtension {
+                backgroundTaskCoordinator = ExtensionBackgroundTaskCoordinator()
+            } else {
+                backgroundTaskCoordinator = AppBackgroundTaskCoordinator()
+            }
+            #else
+            backgroundTaskCoordinator = ExtensionBackgroundTaskCoordinator()
+            #endif
+        } else {
+            backgroundTaskCoordinator = nil
+        }
+
         diskBufferTransport = DiskBufferTransport(
             diskBuffer: diskBuffer,
             httpTransport: httpTransport,
-            logger: logger
+            logger: logger,
+            backgroundTaskCoordinator: backgroundTaskCoordinator
         )
 
         batchExecutor = BatchExecutor(
@@ -223,6 +240,13 @@ public final class FaroInstance {
 
     public func flush() {
         batchExecutor.flush()
+    }
+
+    /// Best-effort synchronous flush of all pending data with background task protection.
+    /// Use during app termination to maximize data delivery before the process exits.
+    public func flushSynchronously() {
+        batchExecutor.shutdown()
+        diskBufferTransport.flushSynchronously()
     }
 
     public func shutdown() {

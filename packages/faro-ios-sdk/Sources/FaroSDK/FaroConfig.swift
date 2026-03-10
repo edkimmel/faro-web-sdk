@@ -17,6 +17,12 @@ public struct FaroConfig {
     public let ignoreErrors: [NSRegularExpression]
     public let ignoreUrls: [NSRegularExpression]
     public let eventDomain: String
+    /// Whether to use beginBackgroundTask to protect uploads from suspension.
+    /// When true, the SDK requests additional background execution time (~30s) during uploads.
+    public let backgroundTasksEnabled: Bool
+    /// Set to true when running inside an app extension (widget, notification service, etc.)
+    /// where UIApplication is unavailable.
+    public let isRunFromExtension: Bool
 
     public init(
         collectorUrl: String,
@@ -34,7 +40,9 @@ public struct FaroConfig {
         beforeSend: ((TransportItem) -> TransportItem?)? = nil,
         ignoreErrors: [NSRegularExpression] = [],
         ignoreUrls: [NSRegularExpression] = [],
-        eventDomain: String = "app"
+        eventDomain: String = "app",
+        backgroundTasksEnabled: Bool = true,
+        isRunFromExtension: Bool = false
     ) {
         self.collectorUrl = collectorUrl
         self.app = app
@@ -52,5 +60,7 @@ public struct FaroConfig {
         self.ignoreErrors = ignoreErrors
         self.ignoreUrls = ignoreUrls
         self.eventDomain = eventDomain
+        self.backgroundTasksEnabled = backgroundTasksEnabled
+        self.isRunFromExtension = isRunFromExtension
     }
 }
