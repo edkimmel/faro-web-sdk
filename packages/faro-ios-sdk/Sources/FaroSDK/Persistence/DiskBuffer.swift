@@ -25,7 +25,7 @@ internal final class DiskBuffer {
     private let config: DiskBufferConfig
     private let logger: InternalLogger
     private let fileManager = FileManager.default
-    private let writeQueue = DispatchQueue(label: "com.grafana.faro.diskbuffer")
+    private let writeQueue = DispatchQueue(label: "com.edkimmel.faro.diskbuffer")
 
     init(baseDir: URL, config: DiskBufferConfig, logger: InternalLogger) {
         self.config = config

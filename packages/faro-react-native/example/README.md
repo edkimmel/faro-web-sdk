@@ -1,6 +1,6 @@
 # Faro React Native Example App
 
-An Expo-based example app for verifying the `@grafana/faro-react-native` SDK.
+An Expo-based example app for verifying the `@edkimmel/faro-react-native` SDK.
 
 ## Prerequisites
 

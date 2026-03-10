@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.grafana.faro"
+    namespace = "com.edkimmel.faro"
     compileSdk = 34
 
     defaultConfig {

@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.grafana.faro.reactnative"
+    namespace = "com.edkimmel.faro.reactnative"
     compileSdk = 34
 
     defaultConfig {

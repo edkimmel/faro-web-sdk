@@ -2,7 +2,7 @@ module.exports = {
   dependency: {
     platforms: {
       android: {
-        packageImportPath: 'import com.grafana.faro.reactnative.FaroReactNativePackage;',
+        packageImportPath: 'import com.edkimmel.faro.reactnative.FaroReactNativePackage;',
         packageInstance: 'new FaroReactNativePackage()',
       },
       ios: {

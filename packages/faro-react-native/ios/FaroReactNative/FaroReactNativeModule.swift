@@ -4,13 +4,13 @@ import FaroSDK
 
 @objc(FaroReactNative)
 class FaroReactNativeModule: NSObject {
-    private let instanceQueue = DispatchQueue(label: "com.grafana.faro.reactnative.instance")
+    private let instanceQueue = DispatchQueue(label: "com.edkimmel.faro.reactnative.instance")
     private var _faroInstance: FaroInstance?
     private var faroInstance: FaroInstance? {
         get { instanceQueue.sync { _faroInstance } }
         set { instanceQueue.sync { _faroInstance = newValue } }
     }
-    private let logger = OSLog(subsystem: "com.grafana.faro.reactnative", category: "Bridge")
+    private let logger = OSLog(subsystem: "com.edkimmel.faro.reactnative", category: "Bridge")
 
     @objc
     func initialize(_ configJson: String, resolve: @escaping RCTPromiseResolveBlock, reject: @escaping RCTPromiseRejectBlock) {

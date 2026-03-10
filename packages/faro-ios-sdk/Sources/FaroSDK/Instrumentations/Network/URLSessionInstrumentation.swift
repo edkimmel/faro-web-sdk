@@ -85,7 +85,7 @@ public final class FaroURLProtocol: URLProtocol {
     private var internalSession: URLSession?
     private var receivedData = Data()
 
-    private static let handledKey = "com.grafana.faro.handled"
+    private static let handledKey = "com.edkimmel.faro.handled"
 
     override public class func canInit(with request: URLRequest) -> Bool {
         // Avoid infinite loops

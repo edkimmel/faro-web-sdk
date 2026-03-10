@@ -22,7 +22,7 @@ let faroInstance: FaroReactNative | null = null;
  *
  * @example
  * ```typescript
- * import { initializeFaro } from '@grafana/faro-react-native';
+ * import { initializeFaro } from '@edkimmel/faro-react-native';
  *
  * const faro = await initializeFaro({
  *   url: 'https://your-collector.example.com/collect',

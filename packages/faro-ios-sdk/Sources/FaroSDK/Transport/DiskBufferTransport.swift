@@ -8,7 +8,7 @@ internal final class DiskBufferTransport: Transport {
     private let logger: InternalLogger
     private let retryInterval: TimeInterval
     private var retryTimer: DispatchSourceTimer?
-    private let queue = DispatchQueue(label: "com.grafana.faro.diskbuffer-transport")
+    private let queue = DispatchQueue(label: "com.edkimmel.faro.diskbuffer-transport")
 
     init(
         diskBuffer: DiskBuffer,

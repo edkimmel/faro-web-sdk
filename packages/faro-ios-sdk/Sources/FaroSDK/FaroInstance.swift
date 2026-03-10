@@ -10,13 +10,13 @@ public final class FaroInstance {
     private let httpTransport: HttpTransport
     private let diskBufferTransport: DiskBufferTransport
     private let batchExecutor: BatchExecutor
-    private let instrumentationsQueue = DispatchQueue(label: "com.grafana.faro.instance.instrumentations")
+    private let instrumentationsQueue = DispatchQueue(label: "com.edkimmel.faro.instance.instrumentations")
     private var _instrumentations: [Instrumentation] = []
     private var instrumentations: [Instrumentation] {
         get { instrumentationsQueue.sync { _instrumentations } }
     }
 
-    private let stateQueue = DispatchQueue(label: "com.grafana.faro.instance.state")
+    private let stateQueue = DispatchQueue(label: "com.edkimmel.faro.instance.state")
     private var _isPaused = false
     private var _currentUser: MetaUser?
     private var _currentView: MetaView?

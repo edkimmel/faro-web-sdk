@@ -16,7 +16,7 @@ public enum InternalLoggerLevel: Int, Comparable {
 
 internal final class InternalLogger {
     private let level: InternalLoggerLevel
-    private let logger = OSLog(subsystem: "com.grafana.faro", category: "Faro")
+    private let logger = OSLog(subsystem: "com.edkimmel.faro", category: "Faro")
 
     init(level: InternalLoggerLevel = .error) {
         self.level = level
